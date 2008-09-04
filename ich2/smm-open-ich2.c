@@ -1,4 +1,5 @@
 #include "reg-82815.h"
+#include <stdlib.h>
 
 unsigned long memsz[] = {
 	0,			// 0
@@ -19,7 +20,7 @@ unsigned long memsz[] = {
 	512*1024*1024		// F
 };
 
-int main()
+int main(int argc, char **argv)
 {
 	unsigned char smramc, drp, drp2;
 	unsigned int tom = 0;
@@ -76,5 +77,21 @@ int main()
 		printf("ABSEG enabled for both SMM code and data\n");
 		break;
 	}
+	
+	
+	if (argc < 2)
+	{
+		smramc &= 0xC0;
+		smramc |= 0x04;
+	
+		pci_write8(0, 0, 0, SMRAMC, smramc);
+		printf("With any luck, ABSEG is now enabled as system RAM... enjoy!\n");
+	} else {
+		smramc = strtoul(argv[1], 0, 0);
+		
+		pci_write8(0, 0, 0, SMRAMC, smramc);
+		printf("OK, set it up as you like.\n");
+	}
+	
 	return 0;
 }
