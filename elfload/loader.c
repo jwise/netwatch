@@ -73,7 +73,7 @@ int load_elf (char * buf) {
 
 		char * section_name = string_table + elf_sec_hdrs[i].sh_name;
 
-		if (!(elf_sec_hdrs[i].sh_flags & SHF_ALLOC)) {
+		if (elf_sec_hdrs[i].sh_type != SHT_PROGBITS) {
 			printf("Skipping %s...\n", section_name);
 			continue;
 		}
