@@ -1,4 +1,4 @@
-	org 0x0
+	org 0xA8000
 [bits 16]
 entry:
 ;	mov al, 0x01		; Say where we are.
@@ -9,16 +9,16 @@ entry:
 	mov fs, ax
 	mov gs, ax
 	mov ss, ax
-	jmp 0xA800:entry2		; Long jump to a correct cs.
+	jmp 0xA800:(entry2-0xA8000)	; Long jump to a correct cs.
 entry2:
 ;	mov al, 0x02
 ;	out 0x80, al
-	lgdt [gdtr]			; Set up a new GDT.
+	lgdt [(gdtr-0xA8000)]		; Set up a new GDT.
 	mov eax, 0x1
 	mov cr0, eax			; ... and enter pmode!
 	mov al, 0x03			; Say we got here.
 	out 0x80, al
-	jmp long 0x10:(continue+0xA8000)	; Now longjmp into the new code.
+	jmp long 0x10:continue		; Now longjmp into the new code.
 [bits 32]
 continue:
 ;	mov al, 0x04			; Now we're in protected mode.
@@ -35,13 +35,13 @@ continue:
 ;	mov al, 0x05
 ;	out 0x80, al
 
-	mov al, [(cstat + 0xA8000)]
+	mov al, [cstat]
 	add al, 1
 	out 0x80, al
-	mov [(cstat + 0xA8000)], al
+	mov [cstat], al
 	
 	mov eax, 0x11223344
-	mov dword [(status + 0xA8000)], eax
+	mov dword [status], eax
 
 	mov dx, 0xCF8			; save off the old config value
 	in dword eax, dx
@@ -73,17 +73,17 @@ continue:
 	shl eax, 1
 	add eax, 0xB8000		; yay
 	mov byte [eax+0], '1'
-	mov byte [eax+1], 0xA0
+	mov byte [eax+1], 0x1F
 	mov byte [eax+2], '5'
-	mov byte [eax+3], 0xA0
+	mov byte [eax+3], 0x1F
 	mov byte [eax+4], '-'
-	mov byte [eax+5], 0xA0
+	mov byte [eax+5], 0x1F
 	mov byte [eax+6], '4'
-	mov byte [eax+7], 0xA0
+	mov byte [eax+7], 0x1F
 	mov byte [eax+8], '1'
-	mov byte [eax+9], 0xA0
+	mov byte [eax+9], 0x1F
 	mov byte [eax+10], '2'
-	mov byte [eax+11], 0xA0
+	mov byte [eax+11], 0x1F
 	
 	mov dx, 0x3D4
 	mov al, [esp-6]
@@ -115,7 +115,7 @@ continue:
 	align 0x4
 gdtr:
 	db 0x27, 0x00
-	dd (gdt + 0xA8000)
+	dd gdt
 	align 0x4
 gdt:
 	db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
