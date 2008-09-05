@@ -74,35 +74,43 @@ continue:
 	mov al, [esp-6]
 	out dx, al
 
-	mov al, 0
-	mov edi, [dataptr+4]		; clear BSS
-	mov ecx, [dataptr+8]
-	rep stosb
-
 	mov dx, 0xCFC			; restore smramc
 	mov al, [esp-5]
 	out dx, al
-	
-	mov eax, [dataptr+12]
-	call eax
 
-	mov dx, 0xCF8			; restore the old config value
+	mov dx, 0xCF8			; restore the old PCI config value
 	mov eax, [esp-4]
 	out dx, eax
+
+	mov al, [needclear]
+	cmp al, 0
+	jz noclear
+	mov al, 0			; clear BSS
+	mov edi, [dataptr+4]
+	mov ecx, [dataptr+8]
+	rep stosb
+	mov [needclear], al
+	
+noclear:
+	mov eax, [dataptr+12]		; jump into C
+	call eax
 
 	mov al, 0x40			; ack the periodic IRQ
 	mov dx, 0x834
 	out dx, al
 	
-	mov dx, 0x830
+	mov dx, 0x830			; now ack the SMI itself
 	in al, dx
-	or al, 0x02			; now ack the SMI itself
+	or al, 0x02
 	and al, 0xBF
 	out dx, al
 	or al, 0x40
 	out dx, al
 
 	rsm				; and leave SMM
+
+needclear:
+	db 0x01
 
 	align 0x4
 gdtr:
