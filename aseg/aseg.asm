@@ -1,8 +1,6 @@
 	org 0xA8000
 [bits 16]
 entry:
-;	mov al, 0x01		; Say where we are.
-;	out 0x80, al
 	mov ax, 0xA800
 	mov ds, ax		; Take us out of flat unreal mode, and
 	mov es, ax		; put us in true real mode.
@@ -11,38 +9,25 @@ entry:
 	mov ss, ax
 	jmp 0xA800:(entry2-0xA8000)	; Long jump to a correct cs.
 entry2:
-;	mov al, 0x02
-;	out 0x80, al
 	lgdt [(gdtr-0xA8000)]		; Set up a new GDT.
 	mov eax, 0x1
 	mov cr0, eax			; ... and enter pmode!
-	mov al, 0x03			; Say we got here.
-	out 0x80, al
 	jmp long 0x10:continue		; Now longjmp into the new code.
 [bits 32]
 continue:
-;	mov al, 0x04			; Now we're in protected mode.
-;	out 0x80, al
-	
 	mov ax, 0x08			; Set up segment selectors.
 	mov ds, ax
 	mov es, ax
 	mov fs, ax
 	mov gs, ax
 	mov ss, ax
-	mov esp, 0x1fffffff
+	mov esp, [dataptr]
 
-;	mov al, 0x05
+;	mov al, [cstat]
+;	add al, 1
 ;	out 0x80, al
-
-	mov al, [cstat]
-	add al, 1
-	out 0x80, al
-	mov [cstat], al
+;	mov [cstat], al
 	
-	mov eax, 0x11223344
-	mov dword [status], eax
-
 	mov dx, 0xCF8			; save off the old config value
 	in dword eax, dx
 	mov [esp-4], eax
@@ -85,14 +70,21 @@ continue:
 	mov byte [eax+10], '2'
 	mov byte [eax+11], 0x1F
 	
-	mov dx, 0x3D4
+	mov dx, 0x3D4			; restore the old stuff
 	mov al, [esp-6]
 	out dx, al
-	
+
+	mov al, 0
+	mov edi, [dataptr+4]		; clear BSS
+	mov ecx, [dataptr+8]
+	rep stosb
 
 	mov dx, 0xCFC			; restore smramc
 	mov al, [esp-5]
 	out dx, al
+	
+	mov eax, [dataptr+12]
+	call eax
 
 	mov dx, 0xCF8			; restore the old config value
 	mov eax, [esp-4]
@@ -123,8 +115,12 @@ gdt:
 	db 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x9B, 0xCF, 0x00	; code segment
 	db 0xFF, 0xFF, 0x00, 0x80, 0x0A, 0x9B, 0xCF, 0x00	; code segment for trampoline
 
-TIMES   512-($-$$) DB 0
-status:
-	dd 0xAA55AA55
 cstat:
 	db 0x00
+
+TIMES   512-($-$$) DB 0
+dataptr:
+	; 4 bytes of stack top
+	; 4 bytes of BSS start
+	; 4 bytes of BSS length
+	; 4 bytes of C entry point
