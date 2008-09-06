@@ -36,18 +36,6 @@ noclear:
 	mov eax, [dataptr+12]		; jump into C
 	call eax
 
-	mov al, 0x40			; ack the periodic IRQ
-	mov dx, 0x834
-	out dx, al
-	
-	mov dx, 0x830			; now ack the SMI itself
-	in al, dx
-	or al, 0x02
-	and al, 0xBF
-	out dx, al
-	or al, 0x40
-	out dx, al
-
 	rsm				; and leave SMM
 
 	align 0x4

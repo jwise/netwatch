@@ -52,5 +52,10 @@ void __start (void)
 	
 	outl(0xCF8, pcisave);
 	outb(0x3D4, vgasave);
+	
+	outb(0x834, 0x40);	// ack the periodic IRQ
+	outb(0x830, (inb(0x830) | 0x2) & ~0x40);
+	outb(0x830, inb(0x830) | 0x40);
+	
 }
 
