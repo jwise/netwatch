@@ -1,9 +1,9 @@
 	org 0xA8000
 [bits 16]
 entry:
-	mov ax, 0xA800
-	mov ds, ax		; Take us out of flat unreal mode, and
-	mov es, ax		; put us in true real mode.
+	mov ax, 0xA800			; Take us out of flat unreal mode,
+	mov ds, ax			; and put us in true real mode.
+	mov es, ax
 	mov fs, ax
 	mov gs, ax
 	mov ss, ax
@@ -21,33 +21,32 @@ continue:
 	mov fs, ax
 	mov gs, ax
 	mov ss, ax
-	mov esp, [dataptr]
+	mov esp, [dataptr]		; Load stack pointer.
 
-	mov al, [needclear]
-	cmp al, 0
-	jz noclear
-	mov al, 0			; clear BSS
+	mov al, [needclear]		; Has the aseg been run before?
+	cmp al, 0			; If so,
+	jz noclear			; don't clear BSS.
+	mov al, 0			; Otherwise, clear BSS.
 	mov edi, [dataptr+4]
 	mov ecx, [dataptr+8]
 	rep stosb
 	mov [needclear], al
 	
 noclear:
-	mov eax, [dataptr+12]		; jump into C
-	call eax
+	mov eax, [dataptr+12]		; Load target jump address
+	call eax			; then jump into C.
 
 	rsm				; and leave SMM
 
 	align 0x4
 gdtr:
-	db 0x27, 0x00
+	db 0x1F, 0x00
 	dd gdt
 	align 0x4
 gdt:
-	db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00	; initial null entry
 	db 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x93, 0xCF, 0x00	; data segment
 	db 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x9B, 0xCF, 0x00	; code segment
-	db 0xFF, 0xFF, 0x00, 0x80, 0x0A, 0x9B, 0xCF, 0x00	; code segment for trampoline
 
 needclear:
 	db 0x01
