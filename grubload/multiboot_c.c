@@ -33,7 +33,8 @@ void c_start(unsigned int magic, struct mb_info *wee)
 	puts("Grubptr is: ");
 	puthex(*grubptr);
 	puts("\n");
-	
+
+
 	for (i = 0; i < wee->mod_cnt; i++)
 	{
 		puts("Module:\n");
@@ -41,6 +42,16 @@ void c_start(unsigned int magic, struct mb_info *wee)
 		puts("  Size: "); puthex(wee->mods[i].mod_end - wee->mods[i].mod_start); puts("\n");
 		puts("  Name: "); puts(wee->mods[i].mod_string); puts("\n");
 	}
+
+	if ((wee->mod_cnt != 1) || (strcmp(wee->mods[0].mod_string, "aseg.elf")))
+	{
+		puts("Expected 1 module called aseg.elf.\n");
+		while(1) asm("hlt");
+	}
+
+	load_elf(wee->mods[0].mod_start, wee->mods[0].mod_end - wee->mods[0].mod_start);
+
+
 	while (1)
 		;
 }

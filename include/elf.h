@@ -21,7 +21,9 @@
 #ifndef _ELF_H
 #define	_ELF_H 1
 
+#ifndef MINILIB
 #include <stdint.h>
+#endif
 
 /* Standard ELF types.  */
 
