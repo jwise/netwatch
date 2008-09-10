@@ -1,6 +1,6 @@
 #include <string.h>
 #include <stdio.h>
-#include "elf.h"
+#include "../include/elf.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
