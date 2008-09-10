@@ -25,7 +25,7 @@ unsigned char vgaread(unsigned char idx)
 
 void strblit(char *src)
 {
-	char *destp = (char*)(0xB8000 | (vgaread(0xC) << 5) | (vgaread(0xD) << 1));
+	char *destp = (char*)(0xB8000UL | (((unsigned int)vgaread(0xC)) << 9) | (((unsigned int)vgaread(0xD)) << 1));
 	while (*src)
 	{
 		*(destp++) = *(src++);

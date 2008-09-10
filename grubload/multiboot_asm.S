@@ -13,7 +13,8 @@ multiboot_entry:
 	mov $_stack_top, %esp
 	pushl %ebx	/* Multiboot info structure */
 	pushl %eax	/* Magic number */
-	jmp c_start
+	call c_start
+hang:	jmp hang
 
 	.align 4
 _stack:
