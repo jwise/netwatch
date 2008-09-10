@@ -1,5 +1,8 @@
 #include "console.h"
 
+extern char _binary_realmode_bin_start[];
+extern int _binary_realmode_bin_size;
+
 struct mb_info
 {
 	unsigned long flags;
@@ -23,6 +26,8 @@ void c_start(unsigned int magic, struct mb_info *wee)
 	unsigned short *grubptr = 0x7CFE;
 	int i;
 	
+	void (*realmode)() = 0x4000;
+	
 	puts("Magic is: ");
 	puthex(magic);
 	puts("\nMultiboot header is: ");
@@ -41,6 +46,8 @@ void c_start(unsigned int magic, struct mb_info *wee)
 		puts("  Size: "); puthex(wee->mods[i].mod_end - wee->mods[i].mod_start); puts("\n");
 		puts("  Name: "); puts(wee->mods[i].mod_string); puts("\n");
 	}
-	while (1)
-		;
+
+	puts("Now returning to real mode.\n");	
+	memcpy(0x4000, _binary_realmode_bin_start, (int)&_binary_realmode_bin_size);
+	realmode();
 }
