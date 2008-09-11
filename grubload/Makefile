@@ -1,4 +1,4 @@
-OBJS=multiboot_c.o multiboot_asm.o console.o minilib.o realmode.o loader.o
+OBJS=multiboot_c.o multiboot_asm.o console.o minilib.o realmode.o loader.o ../pci/pci-smm.o
 CC=gcc
 CFLAGS=-nostdlib -I../include -I. -fno-builtin -nostdinc
 
