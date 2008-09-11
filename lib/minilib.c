@@ -46,18 +46,35 @@ int strlen(char *c)
 	return l;
 }
 
+void strcpy(unsigned char *a2, unsigned char *a1)
+{
+	do {
+		*(a2++) = *a1;
+	} while (*(a1++));
+}
+
 void puts(char *c)
 {
 	putbytes(c, strlen(c));
 }
 
 static char hexarr[] = "0123456789ABCDEF";
-void puthex(unsigned long l)
+void tohex(unsigned char *s, unsigned long l)
 {
 	int i;
 	for (i = 0; i < 8; i++)
 	{
-		putbyte(hexarr[l >> 28]);
+		s[i] = hexarr[l >> 28];
 		l <<= 4;
 	}
 }
+
+void puthex(unsigned long l)
+{
+	unsigned char d[9];
+	d[8] = 0;
+	tohex(d, l);
+	puts(d);
+}
+
+

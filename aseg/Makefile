@@ -1,4 +1,6 @@
-CFLAGS=-I../include
+CC=gcc
+CFLAGS=-I../include -nostdlib -nostdinc -fno-builtin
+OBJS=counter.o ../pci/pci-smm.o ../lib/minilib.o ../lib/console.o
 
 all: aseg.elf
 
@@ -8,5 +10,5 @@ aseg.bin: aseg.asm
 aseg.o: aseg.bin
 	objcopy -I binary -B i386 -O elf32-i386 aseg.bin aseg.o
 
-aseg.elf: aseg.o aseg.lds counter.o ../pci/pci-smm.o
-	ld -o aseg.elf -T aseg.lds counter.o ../pci/pci-smm.o
+aseg.elf: aseg.lds aseg.o $(OBJS)
+	ld -o aseg.elf -T aseg.lds $(OBJS)
