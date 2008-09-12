@@ -4,6 +4,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+/***********************************************************************
+ * DEPRECATED DEPRECATED DEPRECATED DEPRECATED DEPRECATED
+ *
+ * This should be replaced by ../util/smram-ich2 once it's verified to work properly.
+ */
+
 unsigned long memsz[] = {
 	0,			// 0
 	32*1024*1024,		// 1
