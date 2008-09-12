@@ -1,5 +1,4 @@
 #include <io.h>
-#include <minilib.h>
 
 unsigned int counter = 0;
 unsigned long pcisave;

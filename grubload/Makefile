@@ -1,4 +1,4 @@
-OBJS=multiboot_c.o multiboot_asm.o realmode.o loader.o ../pci/pci-smm.o ../lib/minilib.o ../lib/console.o
+OBJS=multiboot_c.o multiboot_asm.o realmode.o loader.o ../pci/pci-raw.o ../lib/minilib.o ../lib/console.o
 CC=gcc
 CFLAGS=-nostdlib -I../include -I. -fno-builtin -nostdinc
 
@@ -12,3 +12,6 @@ realmode.bin: realmode.asm
 
 realmode.o: realmode.bin
 	objcopy -I binary -B i386 -O elf32-i386 realmode.bin realmode.o
+
+clean:
+	rm -f $(OBJS)

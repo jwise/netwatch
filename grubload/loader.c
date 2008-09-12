@@ -1,5 +1,4 @@
-#include "minilib.h"
-#include "../include/elf.h"
+#include <elf.h>
 
 static const unsigned char elf_ident[4] = { 0x7F, 'E', 'L', 'F' }; 
 

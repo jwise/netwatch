@@ -24,11 +24,11 @@ struct mod_info
 
 void c_start(unsigned int magic, struct mb_info *wee)
 {
-	unsigned short *grubptr = 0x7CFE;
+	unsigned short *grubptr = (unsigned short *)0x7CFE;
 	unsigned char smramc;
 	int i;
 	
-	void (*realmode)() = 0x4000;
+	void (*realmode)() = (void (*)()) 0x4000;
 	
 	puts("Magic is: ");
 	puthex(magic);

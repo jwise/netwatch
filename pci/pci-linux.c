@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+#include "pci.h"
+
 static int _open(int bus, int slot, int fn)
 {
 	char fname[512];
