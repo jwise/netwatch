@@ -2,7 +2,7 @@
 #include <pci.h>
 #include <smram.h>
 
-#ifdef __linux__
+#ifndef __RAW__
 
 static unsigned long memsz[] = {
 	0,			// 0

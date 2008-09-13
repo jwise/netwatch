@@ -1,6 +1,6 @@
-OBJS=multiboot_c.o multiboot_asm.o realmode.o loader.o ../pci/pci-raw.o ../lib/minilib.o ../lib/console.o
+OBJS=multiboot_c.o multiboot_asm.o realmode.o loader.o ../pci/pci-raw.o ../lib/minilib.o ../lib/console.o ../ich2/smram-ich2.o
 CC=gcc
-CFLAGS=-nostdlib -I../include -I../include/raw -I. -fno-builtin -nostdinc
+CFLAGS=-nostdlib -I../include -I../include/raw -I. -D__RAW__ -fno-builtin -nostdinc
 
 all: multiboot
 

@@ -1,5 +1,6 @@
 #include "console.h"
 #include <io.h>
+#include <smram.h>
 
 extern char _binary_realmode_bin_start[];
 extern int _binary_realmode_bin_size;
@@ -22,8 +23,9 @@ struct mod_info
 	void *reserved;
 };
 
-void c_start(unsigned int magic, struct mb_info *wee)
+void c_start(unsigned int magic, struct mb_info *info)
 {
+	struct mod_info *mods = mods;
 	unsigned short *grubptr = (unsigned short *)0x7CFE;
 	unsigned char smramc;
 	int i;
@@ -39,15 +41,15 @@ void c_start(unsigned int magic, struct mb_info *wee)
 		while(1) asm("hlt");
 	}
 	
-	for (i = 0; i < wee->mod_cnt; i++)
+	for (i = 0; i < info->mod_cnt; i++)
 	{
 		puts("Module found:\n");
-		puts("  Start: "); puthex(wee->mods[i].mod_start); puts("\n");
-		puts("  Size: "); puthex(wee->mods[i].mod_end - wee->mods[i].mod_start); puts("\n");
-		puts("  Name: "); puts(wee->mods[i].mod_string); puts("\n");
+		puts("  Start: "); puthex(mods[i].mod_start); puts("\n");
+		puts("  Size: "); puthex(mods[i].mod_end - mods[i].mod_start); puts("\n");
+		puts("  Name: "); puts(mods[i].mod_string); puts("\n");
 	}
 
-	if (wee->mod_cnt != 1)
+	if (info->mod_cnt != 1)
 	{
 		puts("Expected exactly one module; cannot continue.\n");
 		while(1) asm("hlt");
@@ -64,10 +66,21 @@ void c_start(unsigned int magic, struct mb_info *wee)
 	pci_write16(0, 31, 2, 0xC0, 0);
 	pci_write16(0, 31, 4, 0xC0, pci_read16(0, 31, 4, 0xC0));
 	pci_write16(0, 31, 4, 0xC0, 0);
-	smramc = pci_read8(0, 0, 0, 0x70);
-	pci_write8(0, 0, 0, 0x70, (smramc & 0xF0) | 0x04);
-	load_elf(wee->mods[0].mod_start, wee->mods[0].mod_end - wee->mods[0].mod_start);
-	pci_write8(0, 0, 0, 0x70, smramc);
+
+
+	/* Open the SMRAM aperture and load our ELF. */
+	smram_state_t old_smramc = smram_save_state();
+
+	if (smram_aseg_set_state(SMRAM_ASEG_OPEN) != 0)
+	{
+		puts("Opening SMRAM failed; cannot load ELF.\n");
+	}
+	else
+	{
+		load_elf(mods[0].mod_start, mods[0].mod_end - mods[0].mod_start);
+		smram_restore_state(old_smramc);
+	}
+
 	outb(0x830, inb(0x830) | 0x41);	/* turn on the SMIs we want */
 	
 	puts("Waiting for a bit before returning to real mode...");

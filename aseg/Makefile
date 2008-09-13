@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-I../include -I../include/raw -nostdlib -nostdinc -fno-builtin
+CFLAGS=-I../include -I../include/raw -nostdlib -nostdinc -fno-builtin -D__RAW__
 OBJS=counter.o ../pci/pci-raw.o ../lib/minilib.o ../lib/console.o
 
 all: aseg.elf
