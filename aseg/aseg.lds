@@ -26,4 +26,11 @@ SECTIONS
 		. = ALIGN(0x10);
 		_stacktop = .;
 	}
+
+	. = 0x10000;
+	.info : {
+		_start = .;
+		LONG(0x5754454E);
+		LONG(__firstrun_start);
+	}
 }

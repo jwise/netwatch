@@ -2,6 +2,8 @@
 #include <io.h>
 #include <smram.h>
 
+#define INFO_SIGNATURE 0x5754454E
+
 extern char _binary_realmode_bin_start[];
 extern int _binary_realmode_bin_size;
 
@@ -23,9 +25,15 @@ struct mod_info
 	void *reserved;
 };
 
+struct info_section
+{
+	unsigned int signature;
+	void (*firstrun)();
+};
+
 void c_start(unsigned int magic, struct mb_info *info)
 {
-	struct mod_info *mods = mods;
+	struct mod_info *mods = info->mods;
 	unsigned short *grubptr = (unsigned short *)0x7CFE;
 	unsigned char smramc;
 	int i;
@@ -78,11 +86,19 @@ void c_start(unsigned int magic, struct mb_info *info)
 	else
 	{
 		load_elf(mods[0].mod_start, mods[0].mod_end - mods[0].mod_start);
-		smram_restore_state(old_smramc);
+
+		struct info_section * info = (struct info_section *)0x10000;
+		if (info->signature != INFO_SIGNATURE)
+		{
+			smram_restore_state(old_smramc);
+			puts("Info section signature mismatch.\n");
+		}
+		else {
+			info->firstrun();
+			smram_restore_state(old_smramc);
+		}
 	}
 
-	outb(0x830, inb(0x830) | 0x41);	/* turn on the SMIs we want */
-	
 	puts("Waiting for a bit before returning to real mode...");
 	for (i=0; i<0x500000; i++)
 	{
