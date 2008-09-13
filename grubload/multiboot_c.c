@@ -31,9 +31,17 @@ struct info_section
 	void (*firstrun)();
 };
 
-void c_start(unsigned int magic, struct mb_info *info)
+void panic(const char *msg)
 {
-	struct mod_info *mods = info->mods;
+	puts("PANIC: ");
+	puts(msg);
+	puts("\nSystem halted\n");
+	while(1) asm("hlt");
+}
+
+void c_start(unsigned int magic, struct mb_info *mbinfo)
+{
+	struct mod_info *mods = mbinfo->mods;
 	unsigned short *grubptr = (unsigned short *)0x7CFE;
 	unsigned char smramc;
 	int i;
@@ -44,12 +52,9 @@ void c_start(unsigned int magic, struct mb_info *info)
 	puts("NetWatch loader\n");
 	
 	if (magic != 0x2BADB002)
-	{
-		puts("Bootloader was not multiboot compliant; cannot continue.\n");
-		while(1) asm("hlt");
-	}
+		panic("Bootloader was not multiboot compliant; cannot continue.");
 	
-	for (i = 0; i < info->mod_cnt; i++)
+	for (i = 0; i < mbinfo->mod_cnt; i++)
 	{
 		puts("Module found:\n");
 		puts("  Start: "); puthex(mods[i].mod_start); puts("\n");
@@ -57,11 +62,8 @@ void c_start(unsigned int magic, struct mb_info *info)
 		puts("  Name: "); puts(mods[i].mod_string); puts("\n");
 	}
 
-	if (info->mod_cnt != 1)
-	{
-		puts("Expected exactly one module; cannot continue.\n");
-		while(1) asm("hlt");
-	}
+	if (mbinfo->mod_cnt != 1)
+		panic("Expected exactly one module; cannot continue.");
 
 	puts("Current USB state is: "); puthex(pci_read16(0, 31, 2, 0xC0)); puts(" "); puthex(pci_read16(0, 31, 4, 0xC0)); puts("\n");
 	puts("Current SMI state is: "); puthex(inl(0x830)); puts("\n");
@@ -80,24 +82,19 @@ void c_start(unsigned int magic, struct mb_info *info)
 	smram_state_t old_smramc = smram_save_state();
 
 	if (smram_aseg_set_state(SMRAM_ASEG_OPEN) != 0)
-	{
-		puts("Opening SMRAM failed; cannot load ELF.\n");
-	}
-	else
-	{
-		load_elf(mods[0].mod_start, mods[0].mod_end - mods[0].mod_start);
+		panic("Opening SMRAM failed; cannot load ELF.");
 
-		struct info_section * info = (struct info_section *)0x10000;
-		if (info->signature != INFO_SIGNATURE)
-		{
-			smram_restore_state(old_smramc);
-			puts("Info section signature mismatch.\n");
-		}
-		else {
-			info->firstrun();
-			smram_restore_state(old_smramc);
-		}
+	load_elf(mods[0].mod_start, mods[0].mod_end - mods[0].mod_start);
+
+	struct info_section * info = (struct info_section *)0x10000;
+	if (info->signature != INFO_SIGNATURE)
+	{
+		smram_restore_state(old_smramc);		/* Restore so that video ram is touchable again. */
+		panic("Info section signature mismatch.");
 	}
+
+	info->firstrun();
+	smram_restore_state(old_smramc);
 
 	puts("Waiting for a bit before returning to real mode...");
 	for (i=0; i<0x500000; i++)
