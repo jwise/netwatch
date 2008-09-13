@@ -14,4 +14,4 @@ realmode.o: realmode.bin
 	objcopy -I binary -B i386 -O elf32-i386 realmode.bin realmode.o
 
 clean:
-	rm -f $(OBJS)
+	rm -f $(OBJS) realmode.bin multiboot
