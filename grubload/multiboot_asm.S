@@ -16,6 +16,7 @@ multiboot_entry:
 	call c_start
 hang:	jmp hang
 
+	.section .bss
 	.align 4
 _stack:
 	.space 16384
