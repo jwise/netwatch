@@ -1,0 +1,18 @@
+To do list:
+[ ] Spin the fans!
+    Requested by de0u 9/11/2008
+[ ] Twice weekly backup into AFS
+    Requested by de0u 9/11/2008
+[ ] Code & data size (kloc) for IP, and for VNC estimate / project
+    presentation
+    Requested by de0u 9/11/2008
+[ ] Fix ACPI (0xB2/B3 emulation -- can we fake it?)
+[ ] PCI scan / module instantiation
+[.] Refactor smram_* 
+    First cut at splitting out ICH2 code done by jdpotter 9/12/2008
+    PCI scan can be done later
+[ ] Update blog as needed
+[ ] Refactor SMI management (moving it all out to an ich2/x.c would be fine
+    as pass 1 -- later it can use the PCI scan)
+[ ] Synchronize headers
+[ ] Fix build system...
