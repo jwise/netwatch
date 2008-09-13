@@ -54,6 +54,49 @@ void dolog(char *s)
 	strcpy(logents[3], s);
 }
 
+void pci_dump() {
+	unsigned char s[40];
+	unsigned long cts;
+	static int curdev = 0;	/* 0 if kbd, 1 if mouse */
+		
+	cts = inl(0x84C);
+	
+	outl(0x848, 0x0);
+	
+	switch(cts&0xF0000)
+	{
+	case 0x20000:
+	{
+		unsigned char b;
+		strcpy(s, "READxxxxxxxxxxxxxxxx");
+		tohex(s+4, cts);
+		b = inb(cts & 0xFFFF);
+		tohex(s+12, b);
+		if ((cts & 0xFFFF) == 0x64)
+			curdev = (b & 0x20) ? 1 : 0;
+		if ((curdev == 0) && ((cts & 0xFFFF) == 0x60) && (b == 0x01))
+			outb(0xCF9, 0x4);
+		dolog(s);
+		*(unsigned char*)0xAFFD0 /* EAX */ = b;
+		break;
+	}
+	case 0x30000:
+	{
+		unsigned char b;
+		
+		strcpy(s, "WRITxxxxxxxxxxxxxxxx");
+		b = *(unsigned char*)0xAFFD0 /* EAX */;
+		tohex(s+4, cts);
+		tohex(s+12, b);
+		dolog(s);
+		outb(cts & 0xFFFF, b);
+		break;
+	}
+	default:
+		dolog("Unhandled PCI cycle");
+	}
+}
+
 void __start (void)
 {
 	unsigned char smramc;
@@ -82,52 +125,20 @@ void __start (void)
 	{
 		if (inl(0x844) & 0x1000)	/* devact_sts */
 		{
-			unsigned char s[40];
-			unsigned long cts;
-			static int curdev = 0;	/* 0 if kbd, 1 if mouse */
-			
-			cts = inl(0x84C);
-			
-			outl(0x848, 0x0);
-			
-			switch(cts&0xF0000)
-			{
-			case 0x20000:
-			{
-				unsigned char b;
-				strcpy(s, "READxxxxxxxxxxxxxxxx");
-				tohex(s+4, cts);
-				b = inb(cts & 0xFFFF);
-				tohex(s+12, b);
-				if ((cts & 0xFFFF) == 0x64)
-					curdev = (b & 0x20) ? 1 : 0;
-				if ((curdev == 0) && ((cts & 0xFFFF) == 0x60) && (b == 0x01))
-					outb(0xCF9, 0x4);
-				dolog(s);
-				*(unsigned char*)0xAFFD0 /* EAX */ = b;
-				break;
-			}
-			case 0x30000:
-			{
-				unsigned char b;
-				
-				strcpy(s, "WRITxxxxxxxxxxxxxxxx");
-				b = *(unsigned char*)0xAFFD0 /* EAX */;
-				tohex(s+4, cts);
-				tohex(s+12, b);
-				dolog(s);
-				outb(cts & 0xFFFF, b);
-				break;
-			}
-			default:
-				dolog("Unhandled PCI cycle");
-			}
+			pci_dump();
 			outl(0x848, 0x1000);
 			outl(0x844, 0x1000);
 		}
 	}
 	if (inl(0x834) & 0x4000)
 		dolog("Long periodic timer");
+	if (inl(0x840) & 0x1000)
+	{
+		dolog("Caught device monitor trap");
+		pci_dump();
+		outl(0x840, 0x1100);
+		outl(0x840, 0x0100);
+	}
 	if (inl(0x834) & ~(0x4160))
 	{
 		unsigned char s[40];
@@ -135,7 +146,8 @@ void __start (void)
 		tohex(s + 9, inl(0x834) & ~(0x140));
 		dolog(s);
 	}
-	
+
+
 	outlog();
 	
 	outl(0xCF8, pcisave);
