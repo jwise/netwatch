@@ -1,6 +1,6 @@
 #include <io.h>
 #include <stdint.h>
-#include "pci.h"
+#include <pci.h>
 
 static void __pci_config(int bus, int slot, int fn, int addr)
 {

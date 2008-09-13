@@ -1,6 +1,8 @@
 #ifndef PCI_H
 #define PCI_H
 
+#include <stdint.h>
+
 /* General PCI functions. This is implemented by pci-linux.c and pci-raw.c; the
  * former uses Linux's /proc/bus/pci interface for access from userspace, while
  * the latter accesses the PCI hardware directly.

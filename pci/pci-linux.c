@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 
-#include "pci.h"
+#include "../include/pci.h"
 
 static int _open(int bus, int slot, int fn)
 {

@@ -30,21 +30,18 @@ void c_start(unsigned int magic, struct mb_info *wee)
 	
 	void (*realmode)() = (void (*)()) 0x4000;
 	
-	puts("Magic is: ");
-	puthex(magic);
-	puts("\nMultiboot header is: ");
-	puthex(wee);
-	puts("\n");
 	show_cursor();
+	puts("NetWatch loader\n");
 	
-	puts("Grubptr is: ");
-	puthex(*grubptr);
-	puts("\n");
-
-
+	if (magic != 0x2BADB002)
+	{
+		puts("Bootloader was not multiboot compliant; cannot continue.\n");
+		while(1) asm("hlt");
+	}
+	
 	for (i = 0; i < wee->mod_cnt; i++)
 	{
-		puts("Module:\n");
+		puts("Module found:\n");
 		puts("  Start: "); puthex(wee->mods[i].mod_start); puts("\n");
 		puts("  Size: "); puthex(wee->mods[i].mod_end - wee->mods[i].mod_start); puts("\n");
 		puts("  Name: "); puts(wee->mods[i].mod_string); puts("\n");
@@ -60,7 +57,7 @@ void c_start(unsigned int magic, struct mb_info *wee)
 	puts("Current SMI state is: "); puthex(inl(0x830)); puts("\n");
 	puts("Current SMRAMC state is: "); puthex(pci_read8(0, 0, 0, 0x70)); puts("\n");
 	
-	outl(0x830, inl(0x830) & ~0x2001);	/* turn off SMIs */
+	outl(0x830, inl(0x830) & ~0x1);	/* turn off SMIs */
 	
 	/* Try really hard to shut up USB_LEGKEY. */
 	pci_write16(0, 31, 2, 0xC0, pci_read16(0, 31, 2, 0xC0));

@@ -2,6 +2,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <smram.h>
 
 static struct option longopts[] = {
 	{ "open",	no_argument,	NULL,	'o'	},
@@ -24,7 +25,7 @@ int main(int argc, char **argv)
 {
 	if (geteuid() != 0)
 	{
-		printf("This program must be run as root, dumbass.\n");
+		printf("%s: This program must be run as root.\n", argv[0]);
 		return 1;
 	}
 	
@@ -61,7 +62,7 @@ int main(int argc, char **argv)
 
 	if (op & OP_SET)
 	{
-		smram_aseg_set_state(do_open);
+		smram_aseg_set_state(do_open ? SMRAM_ASEG_OPEN : SMRAM_ASEG_SMMONLY);
 	}
 	
 	return 0;
