@@ -1,29 +1,14 @@
 #include "console.h"
 #include <io.h>
 #include <smram.h>
+#include <multiboot.h>
 
 #define INFO_SIGNATURE 0x5754454E
 
 extern char _binary_realmode_bin_start[];
 extern int _binary_realmode_bin_size;
 
-struct mb_info
-{
-	unsigned long flags;
-	unsigned long mem_lower, mem_upper;
-	unsigned long boot_dev;
-	char *cmdline;
-	unsigned long mod_cnt;
-	struct mod_info *mods;
-};
 
-struct mod_info
-{
-	void *mod_start;
-	void *mod_end;
-	char *mod_string;
-	void *reserved;
-};
 
 struct info_section
 {
@@ -51,7 +36,7 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 	show_cursor();
 	puts("NetWatch loader\n");
 	
-	if (magic != 0x2BADB002)
+	if (magic != MULTIBOOT_LOADER_MAGIC)
 		panic("Bootloader was not multiboot compliant; cannot continue.");
 	
 	for (i = 0; i < mbinfo->mod_cnt; i++)
