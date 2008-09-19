@@ -1,5 +1,6 @@
 #include <io.h>
 #include <smi.h>
+#include <pci.h>
 
 void __firstrun_start() {
 /*

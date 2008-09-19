@@ -1,26 +1,31 @@
 #include "console.h"
+#include <minilib.h>
 
-void memcpy(unsigned char *a2, unsigned char *a1, int bytes)
+void memcpy(void *dest, void *src, int bytes)
 {
+	char * cdest = dest;
+	char * csrc = src;
 	while (bytes--)
-		*(a2++) = *(a1++);
+		*(cdest++) = *(csrc++);
 }
 
-void memmove(unsigned char *dest, unsigned char *src, int bytes)
+void memmove(void *dest, void *src, int bytes)
 {
-	if ((dest > src) && (dest <= (src + bytes)))
+	char * cdest = dest;
+	char * csrc = src;
+	if ((cdest > csrc) && (cdest <= (csrc + bytes)))
 	{
 		/* do it backwards! */
-		dest += bytes;
-		src += bytes;
+		cdest += bytes;
+		csrc += bytes;
 		while (bytes--)
-			*(--dest) = *(--src);
+			*(--cdest) = *(--csrc);
 	} else
 		while (bytes--)
-			*(dest++) = *(src++);
+			*(cdest++) = *(csrc++);
 }
 
-int memcmp (unsigned char *a2, unsigned char *a1, int bytes) {
+int memcmp (const char *a2, const char *a1, int bytes) {
 	while (bytes--)
 	{
 		if (*(a2++) != *(a1++))
@@ -29,7 +34,7 @@ int memcmp (unsigned char *a2, unsigned char *a1, int bytes) {
 	return 0;
 }
 
-int strcmp (unsigned char *a2, unsigned char *a1) {
+int strcmp (const char *a2, const char *a1) {
 	while (1) {
 		if (*a2 != *a1) return 1;
 		if (*a2 == 0) return 0;
@@ -46,7 +51,7 @@ int strlen(char *c)
 	return l;
 }
 
-void strcpy(unsigned char *a2, unsigned char *a1)
+void strcpy(char *a2, const char *a1)
 {
 	do {
 		*(a2++) = *a1;
@@ -59,7 +64,7 @@ void puts(char *c)
 }
 
 static char hexarr[] = "0123456789ABCDEF";
-void tohex(unsigned char *s, unsigned long l)
+void tohex(char *s, unsigned long l)
 {
 	int i;
 	for (i = 0; i < 8; i++)
@@ -71,7 +76,7 @@ void tohex(unsigned char *s, unsigned long l)
 
 void puthex(unsigned long l)
 {
-	unsigned char d[9];
+	char d[9];
 	d[8] = 0;
 	tohex(d, l);
 	puts(d);
