@@ -62,7 +62,7 @@ void pci_dump() {
 	cts = inl(0x84C);
 	
 	outl(0x848, 0x0);
-	
+	outl(0x840, 0x0);
 	switch(cts&0xF0000)
 	{
 	case 0x20000:
@@ -95,6 +95,9 @@ void pci_dump() {
 	default:
 		dolog("Unhandled PCI cycle");
 	}
+	
+	outl(0x848, 0x1000);
+	outl(0x840, 0x0100);
 }
 
 void __start (void)
@@ -126,15 +129,13 @@ void __start (void)
 		if (inl(0x844) & 0x1000)	/* devact_sts */
 		{
 			pci_dump();
-			outl(0x848, 0x1000);
-			outl(0x844, 0x1000);
+			outl(0x844, 0x1000);	/* ack it */
 		}
 	}
 	if (inl(0x834) & 0x4000)
 		dolog("Long periodic timer");
 	if (inl(0x840) & 0x1000)
 	{
-		dolog("Caught device monitor trap");
 		pci_dump();
 		outl(0x840, 0x1100);
 		outl(0x840, 0x0100);

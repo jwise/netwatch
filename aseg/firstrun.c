@@ -1,4 +1,5 @@
 #include <io.h>
+#include <smi.h>
 
 void __firstrun_start() {
 /*
@@ -22,6 +23,7 @@ void __firstrun_start() {
 	pci_write16(0, 31, 4, 0xC0, 0);
 
 	/* Turn on the SMIs we want */
-	outb(0x830, inb(0x830) | 0x41);
+	outb(0x830, inb(0x830) | 0x40);
+	smi_enable();
 }
 

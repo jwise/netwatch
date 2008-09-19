@@ -1,7 +1,9 @@
 #include "console.h"
+#include <minilib.h>
 #include <io.h>
 #include <smram.h>
 #include <multiboot.h>
+#include <smi.h>
 
 #define INFO_SIGNATURE 0x5754454E
 
@@ -54,14 +56,13 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 	puts("Current SMI state is: "); puthex(inl(0x830)); puts("\n");
 	puts("Current SMRAMC state is: "); puthex(pci_read8(0, 0, 0, 0x70)); puts("\n");
 	
-	outl(0x830, inl(0x830) & ~0x1);	/* turn off SMIs */
+	smi_disable();
 	
 	/* Try really hard to shut up USB_LEGKEY. */
 	pci_write16(0, 31, 2, 0xC0, pci_read16(0, 31, 2, 0xC0));
 	pci_write16(0, 31, 2, 0xC0, 0);
 	pci_write16(0, 31, 4, 0xC0, pci_read16(0, 31, 4, 0xC0));
 	pci_write16(0, 31, 4, 0xC0, 0);
-
 
 	/* Open the SMRAM aperture and load our ELF. */
 	smram_state_t old_smramc = smram_save_state();
