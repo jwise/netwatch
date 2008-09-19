@@ -1,51 +1,72 @@
 #include <io.h>
+#include <smram.h>
+#include <video_defines.h>
+#include <minilib.h>
 
 unsigned int counter = 0;
 unsigned long pcisave;
 unsigned char vgasave;
-unsigned char thestr[512];
-unsigned char logents[4][41] = {0};
+char thestr[512];
+char logents[4][41] = {{0}};
 
-unsigned char vgaread(unsigned char idx)
+#define VRAM_BASE		0xA0000UL
+#define TEXT_CONSOLE_OFFSET	0x18000UL 
+
+#define TEXT_CONSOLE_BASE	(VRAM_BASE + TEXT_CONSOLE_OFFSET)
+
+#define COLOR			0x1F
+
+unsigned char vga_read(unsigned char idx)
 {
-	outb(0x3D4, idx);
-	inb(0x3D5);
+	outb(CRTC_IDX_REG, idx);
+	return inb(CRTC_DATA_REG);
 }
 
-void strblit(char *src, int r, int c)
+char * vga_base()
 {
-	char *destp = (char*)(0xB8000UL | (((unsigned int)vgaread(0xC)) << 9) | (((unsigned int)vgaread(0xD)) << 1)) + r*80*2 + c*2;
-	unsigned char smramc;
+	return (char *) (
+		TEXT_CONSOLE_BASE
+		| (((unsigned int) vga_read(CRTC_START_ADDR_LSB_IDX)) << 9)
+		| (((unsigned int) vga_read(CRTC_START_ADDR_MSB_IDX)) << 1)
+	);
+}
+
+void strblit(char *src, int row, int col)
+{
+	char *destp = vga_base() + row * 80 * 2 + col * 2;
+	smram_state_t old_state = smram_save_state();
+
+	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
 	
-	smramc = pci_read8(0, 0, 0, 0x70);
-	pci_write8(0, 0, 0, 0x70, (smramc & 0xF3) | 0x08);
 	while (*src)
 	{
 		*(destp++) = *(src++);
-		*(destp++) = 0x1F;
+		*(destp++) = COLOR;
 	}
-	pci_write8(0, 0, 0, 0x70, smramc);
+
+	smram_restore_state(old_state);
 }
 
 void outlog()
 {
 	int y, x;
-	unsigned char smramc;
-	unsigned char *basep = (char*)(0xB8000UL | (((unsigned int)vgaread(0xC)) << 9) | (((unsigned int)vgaread(0xD)) << 1));
-	
-	smramc = pci_read8(0, 0, 0, 0x70);
-	pci_write8(0, 0, 0, 0x70, (smramc & 0xF3) | 0x08);
+	char *basep = vga_base();
+
+	smram_state_t old_state = smram_save_state();
+
+	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
+
 	for (y = 0; y < 4; y++)
 		for (x = 40; x < 80; x++)
 		{
 			basep[y*80*2+x*2] = ' ';
 			basep[y*80*2+x*2+1] = 0x1F;
 		}
-	pci_write8(0, 0, 0, 0x70, smramc);
-	
+
+	smram_restore_state(old_state);
+
 	for (y = 0; y < 4; y++)
 		strblit(logents[y], y, 40);
-	
 }
 
 void dolog(char *s)
@@ -55,7 +76,7 @@ void dolog(char *s)
 }
 
 void pci_dump() {
-	unsigned char s[40];
+	char s[40];
 	unsigned long cts;
 	static int curdev = 0;	/* 0 if kbd, 1 if mouse */
 		
@@ -99,7 +120,6 @@ void pci_dump() {
 
 void __start (void)
 {
-	unsigned char smramc;
 	static int first = 1;
 	
 	pcisave = inl(0xCF8);
@@ -141,7 +161,7 @@ void __start (void)
 	}
 	if (inl(0x834) & ~(0x4160))
 	{
-		unsigned char s[40];
+		char s[40];
 		strcpy(s, "Unknown: xxxxxxxx");
 		tohex(s + 9, inl(0x834) & ~(0x140));
 		dolog(s);

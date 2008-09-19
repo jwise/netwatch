@@ -7,6 +7,7 @@
 
 #include <console.h>
 #include "console-ext.h"
+#include <minilib.h>
 #include <io.h>
 
 #define POS_IS_VALID(row, col) ((row) >= 0 && (row) < CONSOLE_HEIGHT && (col) >= 0 && (col) < CONSOLE_WIDTH)

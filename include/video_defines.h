@@ -46,9 +46,13 @@
 #define BLINK      0x80 /* Annoying. */
 
 /* --- CRTC Register Manipulation --- */
+
 #define CRTC_IDX_REG 0x3d4
 #define CRTC_DATA_REG 0x3d5
-#define CRTC_CURSOR_LSB_IDX 15
-#define CRTC_CURSOR_MSB_IDX 14
+
+#define CRTC_START_ADDR_MSB_IDX	0xC
+#define CRTC_START_ADDR_LSB_IDX	0xD
+#define CRTC_CURSOR_MSB_IDX	0xE
+#define CRTC_CURSOR_LSB_IDX	0xF
 
 #endif

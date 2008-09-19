@@ -94,7 +94,7 @@ smram_state_t smram_save_state()
 
 void smram_restore_state(smram_state_t state)
 {
-	return pci_write8(0, 0, 0, SMRAMC, state); 
+	pci_write8(0, 0, 0, SMRAMC, state); 
 }
 
 int smram_aseg_set_state (int open) {

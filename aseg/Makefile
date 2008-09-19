@@ -1,6 +1,6 @@
 CC=gcc
-CFLAGS=-I../include -I../include/raw -nostdlib -nostdinc -fno-builtin -D__RAW__
-OBJS=counter.o firstrun.o ../pci/pci-raw.o ../lib/minilib.o ../lib/console.o
+CFLAGS=-I../include -I../include/raw -nostdlib -nostdinc -fno-builtin -D__RAW__ -Wall -Werror -pedantic -ansi -std=gnu99
+OBJS=counter.o firstrun.o ../pci/pci-raw.o ../lib/minilib.o ../lib/console.o ../ich2/smram-ich2.o
 
 all: aseg.elf
 
