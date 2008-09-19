@@ -2,6 +2,7 @@
 #include <smram.h>
 #include <video_defines.h>
 #include <minilib.h>
+#include <stdarg.h>
 
 static char logents[4][41] = {{0}};
 
@@ -22,8 +23,8 @@ static char * vga_base()
 {
 	return (char *) (
 		TEXT_CONSOLE_BASE
-		| (((unsigned int) vga_read(CRTC_START_ADDR_LSB_IDX)) << 9)
-		| (((unsigned int) vga_read(CRTC_START_ADDR_MSB_IDX)) << 1)
+		+ (((unsigned int) vga_read(CRTC_START_ADDR_MSB_IDX)) << 9)
+		+ (((unsigned int) vga_read(CRTC_START_ADDR_LSB_IDX)) << 1)
 	);
 }
 
@@ -60,7 +61,7 @@ void outlog()
 		}
 
 	smram_restore_state(old_state);
-
+	
 	for (y = 0; y < 4; y++)
 		strblit(logents[y], y, 40);
 }
@@ -69,4 +70,14 @@ void dolog(char *s)
 {
 	memmove(logents[0], logents[1], sizeof(logents[0])*3);
 	strcpy(logents[3], s);
+}
+
+void dologf(char *fmt, ...)
+{
+	va_list va;
+	
+	memmove(logents[0], logents[1], sizeof(logents[0])*3);
+	va_start(va, fmt);
+	vsnprintf(logents[3], 40, fmt, va);
+	va_end(va);
 }

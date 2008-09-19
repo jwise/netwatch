@@ -25,15 +25,12 @@ void pci_dump() {
 	case 0x20000:
 	{
 		unsigned char b;
-		strcpy(s, "READxxxxxxxxxxxxxxxx");
-		tohex(s+4, cts);
 		b = inb(cts & 0xFFFF);
-		tohex(s+12, b);
+		dologf("READ: %08x (%02x)", cts, b);
 		if ((cts & 0xFFFF) == 0x64)
 			curdev = (b & 0x20) ? 1 : 0;
 		if ((curdev == 0) && ((cts & 0xFFFF) == 0x60) && (b == 0x01))
 			outb(0xCF9, 0x4);
-		dolog(s);
 		*(unsigned char*)0xAFFD0 /* EAX */ = b;
 		break;
 	}
@@ -97,13 +94,7 @@ void __start (void)
 		outl(0x840, 0x0100);
 	}
 	if (inl(0x834) & ~(0x4160))
-	{
-		char s[40];
-		strcpy(s, "Unknown: xxxxxxxx");
-		tohex(s + 9, inl(0x834) & ~(0x140));
-		dolog(s);
-	}
-
+		dologf("Unknown: %08x", inl(0x834) & ~(0x140));
 
 	outlog();
 	

@@ -5,7 +5,7 @@
 
 uint16_t _get_PMBASE()
 {
-	return pci_read32(0, 0, 0, 0x40) & 0xFF80;
+	return pci_read32(0, 21, 0, 0x40) & 0xFF80;
 }
 
 void smi_disable()

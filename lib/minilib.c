@@ -81,5 +81,3 @@ void puthex(unsigned long l)
 	tohex(d, l);
 	puts(d);
 }
-
-
