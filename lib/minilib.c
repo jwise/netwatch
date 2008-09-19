@@ -43,7 +43,7 @@ int strcmp (const char *a2, const char *a1) {
 	}
 }
 
-int strlen(char *c)
+int strlen(const char *c)
 {
 	int l = 0;
 	while (*(c++))
@@ -58,7 +58,7 @@ void strcpy(char *a2, const char *a1)
 	} while (*(a1++));
 }
 
-void puts(char *c)
+void puts(const char *c)
 {
 	putbytes(c, strlen(c));
 }
