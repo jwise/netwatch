@@ -1,9 +1,12 @@
 #include "console.h"
+#include "loader.h"
+
 #include <minilib.h>
 #include <io.h>
 #include <smram.h>
 #include <multiboot.h>
 #include <smi.h>
+#include <pci.h>
 
 #define INFO_SIGNATURE 0x5754454E
 
@@ -23,14 +26,14 @@ void panic(const char *msg)
 	puts("PANIC: ");
 	puts(msg);
 	puts("\nSystem halted\n");
-	while(1) asm("hlt");
+	while(1) { __asm__("hlt"); }
 }
 
 void c_start(unsigned int magic, struct mb_info *mbinfo)
 {
 	struct mod_info *mods = mbinfo->mods;
-	unsigned short *grubptr = (unsigned short *)0x7CFE;
-	unsigned char smramc;
+	smram_state_t old_smramc;
+	struct info_section * info;
 	int i;
 	
 	void (*realmode)() = (void (*)()) 0x4000;
@@ -44,8 +47,8 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 	for (i = 0; i < mbinfo->mod_cnt; i++)
 	{
 		puts("Module found:\n");
-		puts("  Start: "); puthex(mods[i].mod_start); puts("\n");
-		puts("  Size: "); puthex(mods[i].mod_end - mods[i].mod_start); puts("\n");
+		puts("  Start: "); puthex((unsigned long) mods[i].mod_start); puts("\n");
+		puts("  Size: "); puthex((unsigned long)mods[i].mod_end - (unsigned long)mods[i].mod_start); puts("\n");
 		puts("  Name: "); puts(mods[i].mod_string); puts("\n");
 	}
 
@@ -65,14 +68,14 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 	pci_write16(0, 31, 4, 0xC0, 0);
 
 	/* Open the SMRAM aperture and load our ELF. */
-	smram_state_t old_smramc = smram_save_state();
+	old_smramc = smram_save_state();
 
 	if (smram_aseg_set_state(SMRAM_ASEG_OPEN) != 0)
 		panic("Opening SMRAM failed; cannot load ELF.");
 
-	load_elf(mods[0].mod_start, mods[0].mod_end - mods[0].mod_start);
+	load_elf(mods[0].mod_start, (unsigned long)mods[0].mod_end - (unsigned long)mods[0].mod_start);
 
-	struct info_section * info = (struct info_section *)0x10000;
+	info = (struct info_section *)0x10000;
 	if (info->signature != INFO_SIGNATURE)
 	{
 		smram_restore_state(old_smramc);		/* Restore so that video ram is touchable again. */
@@ -92,6 +95,6 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 	puts("\n");
 
 	puts("Now returning to real mode.\n");	
-	memcpy(0x4000, _binary_realmode_bin_start, (int)&_binary_realmode_bin_size);
+	memcpy((void *)0x4000, _binary_realmode_bin_start, (int)&_binary_realmode_bin_size);
 	realmode();	// goodbye!
 }
