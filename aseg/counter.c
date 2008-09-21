@@ -2,6 +2,7 @@
 #include <smram.h>
 #include <video_defines.h>
 #include <minilib.h>
+#include <smi.h>
 
 char thestr[512];
 
@@ -54,25 +55,15 @@ void pci_dump() {
 	outl(0x840, 0x0100);
 }
 
-void __start (void)
+void smi_entry(void)
 {
-	static int first = 1;
-	
 	pcisave = inl(0xCF8);
 	vgasave = inb(0x3D4);
 	
-	if (first)
-	{
-		first = 0;
-		dolog("NetWatch running...");
-	}
-
 	counter++;
 	outb(0x80, (counter & 0xFF));
 	
-	strcpy(thestr, "15-412! xxxxxxxx xxxxxxxx");
-	tohex(thestr + 8, inl(0x0834));
-	tohex(thestr + 17, counter);
+	sprintf(thestr, "15-412! %08x %08x", smi_status(), counter);
 	strblit(thestr, 0, 0);
 	
 	if (inl(0x834) & 0x20)

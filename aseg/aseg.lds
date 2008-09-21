@@ -9,7 +9,7 @@ SECTIONS
 		LONG(_stacktop);
 		LONG(_bss);
 		LONG(_bssend - _bss);
-		LONG(__start);
+		LONG(smi_entry);
 		*(.text);
 		*(.data);
 		*(.rodata);

@@ -26,3 +26,4 @@ unsigned long smi_status()
 	unsigned short smi_sts = _get_PMBASE() + ICH2_PMBASE_SMI_STS;
 	return inl(smi_sts);
 }
+
