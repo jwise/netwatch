@@ -66,8 +66,6 @@ void smi_entry(void)
 	sprintf(thestr, "15-412! %08x %08x", smi_status(), counter);
 	strblit(thestr, 0, 0);
 	
-	if (inl(0x834) & 0x20)
-		dolog("Warning: unhandled APM access");
 	if (inl(0x834) & 0x1000)
 	{
 		if (inl(0x844) & 0x1000)	/* devact_sts */
@@ -76,26 +74,17 @@ void smi_entry(void)
 			outl(0x844, 0x1000);	/* ack it */
 		}
 	}
-	if (inl(0x834) & 0x4000)
-		dolog("Long periodic timer");
 	if (inl(0x840) & 0x1000)
 	{
 		pci_dump();
 		outl(0x840, 0x1100);
 		outl(0x840, 0x0100);
 	}
-	if (inl(0x834) & ~(0x4160))
-		dologf("Unknown: %08x", inl(0x834) & ~(0x140));
 
+	smi_poll();
 	outlog();
 	
 	outl(0xCF8, pcisave);
 	outb(0x3D4, vgasave);
-	
-	outl(0x848, 0x1000);
-	outl(0x834, /*0x40*/0xFFFF);	// ack the periodic IRQ
-	outb(0x830, (inb(0x830) | 0x2) & ~0x40);
-	outb(0x830, inb(0x830) | 0x40);
-	
 }
 
