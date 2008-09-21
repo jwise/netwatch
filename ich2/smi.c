@@ -5,7 +5,7 @@
 #include <vga-overlay.h>
 #include <reg-82801b.h>
 
-uint16_t _get_PMBASE()
+static uint16_t _get_PMBASE()
 {
 	return pci_read32(ICH2_LPC_BUS, ICH2_LPC_DEV, ICH2_LPC_FN, ICH2_LPC_PCI_PMBASE) & ICH2_PMBASE_MASK;
 }
