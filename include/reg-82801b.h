@@ -29,6 +29,21 @@
 #define ICH2_LPC_PCI_MON7_TRP_RNG	0xCA
 #define ICH2_LPC_PCI_MON_TRP_MSK	0xCC
 
+#define ICH2_PMBASE_PM1_STS		0x00
+#define ICH2_PM1_STS_WAK_STS		(1 << 15)
+#define ICH2_PM1_STS_PRBTNOR_STS	(1 << 11)
+#define ICH2_PM1_STS_RTC_STS		(1 << 10)
+#define ICH2_PM1_STS_PWRBTN_STS		(1 << 8)
+#define ICH2_PM1_STS_GBL_STS		(1 << 5)
+#define ICH2_PM1_STS_BM_STS		(1 << 4)
+#define ICH2_PM1_STS_TMROF_STS		(1 << 0)
+
+#define ICH2_PMBASE_PM1_EN		0x02
+#define ICH2_PM1_EN_RTC_EN		(1 << 10)
+#define ICH2_PM1_EN_PWRBTN_EN		(1 << 8)
+#define ICH2_PM1_EN_GBL_EN		(1 << 5)
+#define ICH2_PM1_EN_TMROF_EN		(1 << 0
+
 #define ICH2_PMBASE_SMI_EN		0x30
 #define ICH2_SMI_EN_PERIODIC_EN		(1 << 14)
 #define ICH2_SMI_EN_TCO_EN		(1 << 13)

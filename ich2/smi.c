@@ -7,7 +7,12 @@
 
 static uint16_t _get_PMBASE()
 {
-	return pci_read32(ICH2_LPC_BUS, ICH2_LPC_DEV, ICH2_LPC_FN, ICH2_LPC_PCI_PMBASE) & ICH2_PMBASE_MASK;
+	static long pmbase = -1;
+	
+	if (pmbase == -1)	/* Memoize it so that we don't have to hit PCI so often. */
+		pmbase = pci_read32(ICH2_LPC_BUS, ICH2_LPC_DEV, ICH2_LPC_FN, ICH2_LPC_PCI_PMBASE) & ICH2_PMBASE_MASK;
+	
+	return pmbase;
 }
 
 void smi_disable()
@@ -53,12 +58,12 @@ void smi_poll()
 	if (sts & ICH2_SMI_STS_APM_STS)
 	{
 		dolog("Unhandled: APM_STS");
-		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_SLP_SMI_STS);
+		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_APM_STS);
 	}
 	
 	if (sts & ICH2_SMI_STS_SWSMI_TMR_STS)	// Ack it, then request another.
 	{
-		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_SLP_SMI_STS);
+		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_SWSMI_TMR_STS);
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_EN,
 			inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) & ~ICH2_SMI_EN_SWSMI_TMR_EN);
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_EN,
@@ -67,12 +72,47 @@ void smi_poll()
 	
 	if (sts & ICH2_SMI_STS_PM1_STS_REG)
 	{
-		/* XXX -- trawl through PMBASE+00h to see what happened */
+		unsigned short pm1_sts = inw(_get_PMBASE() + ICH2_PMBASE_PM1_STS);
+		unsigned short pm1_en = inw(_get_PMBASE() + ICH2_PMBASE_PM1_EN);
+		
+		pm1_sts &= pm1_en;
+		if (pm1_sts & ICH2_PM1_STS_RTC_STS)
+		{
+			dolog("Unhandled: PM1_STS: RTC_STS");
+			outw(_get_PMBASE() + ICH2_PMBASE_PM1_STS, ICH2_PM1_STS_RTC_STS);
+		}
+		
+		if (pm1_sts & ICH2_PM1_STS_PWRBTN_STS)
+		{
+			dolog("Unhandled: PM1_STS: PWRBTN_STS");
+			outw(_get_PMBASE() + ICH2_PMBASE_PM1_STS, ICH2_PM1_STS_PWRBTN_STS);
+		}
+		
+		if (pm1_sts & ICH2_PM1_STS_GBL_STS)
+		{
+			dolog("Unhandled: PM1_STS: GBL_STS");
+			outw(_get_PMBASE() + ICH2_PMBASE_PM1_STS, ICH2_PM1_STS_GBL_STS);
+		}
+		
+		if (pm1_sts & ICH2_PM1_STS_TMROF_STS)
+		{
+			dolog("Unhandled: PM1_STS: TMROF_STS");
+			outw(_get_PMBASE() + ICH2_PMBASE_PM1_STS, ICH2_PM1_STS_TMROF_STS);
+		}
+		
+		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_PM1_STS_REG);
 	}
 	
 	if (sts & ICH2_SMI_STS_GPE0_STS)
 	{
 		/* XXX -- trawl through GPE0_STS to see what happened */
+		dolog("XXX Unhandled: GPE0_STS (expect lockup)");
+	}
+	
+	if (sts & ICH2_SMI_STS_GPE1_STS)
+	{
+		/* XXX -- trawl through GPE1_STS to see what happened */
+		dolog("XXX Unhandled: GPE1_STS (expect lockup)");
 	}
 	
 	if (sts & ICH2_SMI_STS_MCSMI_STS)
@@ -83,8 +123,13 @@ void smi_poll()
 	
 	if (sts & ICH2_SMI_STS_DEVMON_STS)
 	{
-		/* XXX -- trawl through DEVx_TRAP_STS to see what happened */
-		/* XXX -- trawl through DEVTRAP_STS to see what happened */
+		unsigned short mon_smi = inw(_get_PMBASE() + ICH2_PMBASE_MON_SMI);
+		unsigned long devact_sts = inl(_get_PMBASE() + ICH2_PMBASE_DEVACT_STS);
+		unsigned long devtrap_en = inl(_get_PMBASE() + ICH2_PMBASE_DEVTRAP_EN);
+		if (((mon_smi & 0x0F00) >> 8) & ((mon_smi & 0xF000) >> 12))
+			dologf("Unhandled: MON_SMI (%04x)", mon_smi);
+		if (devact_sts & devtrap_en)
+			dologf("Unhandled: DEVTRAP (%08x)", devact_sts & devtrap_en);
 	}
 	
 	if (sts & ICH2_SMI_STS_TCO_STS)
@@ -111,8 +156,8 @@ void smi_poll()
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_SMBUS_SMI_STS);
 	}
 	
-	if (smi_status())
-		dolog("WARNING: failed to clear SMI_STS!");
+	if (smi_status() & ~ICH2_SMI_STS_PM1_STS_REG)	/* Either the chipset is buggy, or we are. */
+		dologf("WARN: couldn't clear SMI_STS! (%08x)", smi_status());
 	
 	outl(_get_PMBASE() + ICH2_PMBASE_SMI_EN,
 		inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) |
