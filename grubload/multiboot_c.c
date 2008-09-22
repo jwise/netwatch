@@ -13,8 +13,6 @@
 extern char _binary_realmode_bin_start[];
 extern int _binary_realmode_bin_size;
 
-
-
 struct info_section
 {
 	unsigned int signature;
@@ -27,6 +25,12 @@ void panic(const char *msg)
 	puts(msg);
 	puts("\nSystem halted\n");
 	while(1) { __asm__("hlt"); }
+}
+
+void dolog(char *s)
+{
+	/* little shim -- need to unify logging */
+	puts(s);
 }
 
 void c_start(unsigned int magic, struct mb_info *mbinfo)
