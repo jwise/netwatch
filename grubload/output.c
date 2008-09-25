@@ -8,7 +8,7 @@
 
 static void safeputs(const char *s)
 {
-	unsigned long old = smram_save_state();
+	smram_state_t old = smram_save_state();
 	smram_aseg_set_state(SMRAM_ASEG_SMMONLY);
 	puts(s);
 	smram_restore_state(old);

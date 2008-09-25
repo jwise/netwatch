@@ -50,10 +50,10 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 
 	if (mbinfo->mod_cnt != 1)
 		panic("Expected exactly one module; cannot continue.");
-
+	outputf("Current SMRAMC state is: %02x", pci_read8(0, 0, 0, 0x70));
 	outputf("Current USB state is: %04x %04x", pci_read16(0, 31, 2, 0xC0), pci_read16(0, 31, 4, 0xC0));
 	outputf("Current SMI state is: %08x", inl(0x830));
-	outputf("Current SMRAMC state is: %02x", pci_read8(0, 0, 0, 0x70));
+	
 	
 	smi_disable();
 	
@@ -80,6 +80,8 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 
 	info->firstrun();
 	smram_restore_state(old_smramc);
+	
+	outputf("New SMRAMC state is: %02x", pci_read8(0, 0, 0, 0x70));
 
 	puts("Waiting for a bit before returning to real mode...");
 	for (i=0; i<0x500000; i++)

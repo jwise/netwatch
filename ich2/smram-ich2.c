@@ -127,3 +127,25 @@ int smram_aseg_set_state (int open) {
 
 	return 0;
 }
+
+int smram_tseg_set_state (int open) {
+	unsigned char smramc;
+
+	if (smram_locked())
+		return -1;
+		
+	smramc = pci_read8(0, 0, 0, SMRAMC);
+
+	switch (open)
+	{
+	case SMRAM_TSEG_OPEN:
+		smramc = (smramc & 0x8F) | 0x00;
+		break;
+	default:
+		return -1;
+	}
+
+	pci_write8(0, 0, 0, SMRAMC, smramc);
+
+	return 0;
+}

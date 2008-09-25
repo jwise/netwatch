@@ -7,8 +7,6 @@ SECTIONS
 		_start = .;
 		aseg.o
 		LONG(_stacktop);
-		LONG(_bss);
-		LONG(_bssend - _bss);
 		LONG(smi_entry);
 		*(.text);
 		*(.data);

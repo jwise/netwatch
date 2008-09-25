@@ -22,18 +22,8 @@ continue:
 	mov gs, ax
 	mov ss, ax
 	mov esp, [dataptr]		; Load stack pointer.
-
-	mov al, [needclear]		; Has the aseg been run before?
-	cmp al, 0			; If so,
-	jz noclear			; don't clear BSS.
-	mov al, 0			; Otherwise, clear BSS.
-	mov edi, [dataptr+4]
-	mov ecx, [dataptr+8]
-	rep stosb
-	mov [needclear], al
 	
-noclear:
-	mov eax, [dataptr+12]		; Load target jump address
+	mov eax, [dataptr+4]		; Load target jump address
 	call eax			; then jump into C.
 
 	rsm				; and leave SMM
@@ -48,12 +38,7 @@ gdt:
 	db 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x93, 0xCF, 0x00	; data segment
 	db 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x9B, 0xCF, 0x00	; code segment
 
-needclear:
-	db 0x01
-
 dataptr:
 	; 4 bytes of stack top
-	; 4 bytes of BSS start
-	; 4 bytes of BSS length
 	; 4 bytes of C entry point
 	; These show up 

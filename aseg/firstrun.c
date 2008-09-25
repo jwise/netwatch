@@ -3,8 +3,20 @@
 #include <pci.h>
 #include <reg-82801b.h>
 #include "vga-overlay.h"
+#include <smram.h>
+
+extern int _bss, _bssend;
 
 void __firstrun_start() {
+	unsigned char *bp;
+	smram_state_t smram;
+	
+	smram = smram_save_state();
+	smram_tseg_set_state(SMRAM_TSEG_OPEN);
+	
+	for (bp = (void *)&_bss; (void *)bp < (void *)&_bssend; bp++)
+		*bp = 0;
+	
 	dologf("NetWatch running");
 
 	/* Try really hard to shut up USB_LEGKEY. */
@@ -17,5 +29,7 @@ void __firstrun_start() {
 	outb(0x830, inb(0x830) | ICH2_SMI_EN_SWSMI_TMR_EN);
 	outb(0x848, ICH2_DEVTRAP_EN_KBC_TRP_EN);
 	smi_enable();
+	
+	smram_restore_state(smram);
 }
 
