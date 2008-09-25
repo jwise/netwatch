@@ -3,6 +3,7 @@
 #include <video_defines.h>
 #include <minilib.h>
 #include <stdarg.h>
+#include <output.h>
 
 static char logents[4][41] = {{0}};
 
@@ -66,13 +67,14 @@ void outlog()
 		strblit(logents[y], y, 40);
 }
 
-void dolog(char *s)
+void dolog(const char *s)
 {
 	memmove(logents[0], logents[1], sizeof(logents[0])*3);
 	strcpy(logents[3], s);
 }
+void (*output)(const char *s) = dolog;
 
-void dologf(char *fmt, ...)
+void dologf(const char *fmt, ...)
 {
 	va_list va;
 	
@@ -81,3 +83,4 @@ void dologf(char *fmt, ...)
 	vsnprintf(logents[3], 40, fmt, va);
 	va_end(va);
 }
+void (*outputf)(const char *s, ...) = dologf;

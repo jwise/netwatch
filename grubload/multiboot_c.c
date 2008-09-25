@@ -1,6 +1,6 @@
 #include "console.h"
 #include "loader.h"
-
+#include <output.h>
 #include <minilib.h>
 #include <io.h>
 #include <smram.h>
@@ -21,16 +21,8 @@ struct info_section
 
 void panic(const char *msg)
 {
-	puts("PANIC: ");
-	puts(msg);
-	puts("\nSystem halted\n");
+	outputf("PANIC: %s\nSystem halted\n", msg);
 	while(1) { __asm__("hlt"); }
-}
-
-void dolog(char *s)
-{
-	/* little shim -- need to unify logging */
-	puts(s);
 }
 
 void c_start(unsigned int magic, struct mb_info *mbinfo)
@@ -43,25 +35,25 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 	void (*realmode)() = (void (*)()) 0x4000;
 	
 	show_cursor();
-	puts("NetWatch loader\n");
+	outputf("NetWatch loader");
 	
 	if (magic != MULTIBOOT_LOADER_MAGIC)
 		panic("Bootloader was not multiboot compliant; cannot continue.");
 	
 	for (i = 0; i < mbinfo->mod_cnt; i++)
 	{
-		puts("Module found:\n");
-		puts("  Start: "); puthex((unsigned long) mods[i].mod_start); puts("\n");
-		puts("  Size: "); puthex((unsigned long)mods[i].mod_end - (unsigned long)mods[i].mod_start); puts("\n");
-		puts("  Name: "); puts(mods[i].mod_string); puts("\n");
+		outputf("Module found:");
+		outputf("  Start: %08x", (unsigned long) mods[i].mod_start);
+		outputf("  Size: %08x", (unsigned long)mods[i].mod_end - (unsigned long)mods[i].mod_start);
+		outputf("  Name: %s", mods[i].mod_string);
 	}
 
 	if (mbinfo->mod_cnt != 1)
 		panic("Expected exactly one module; cannot continue.");
 
-	puts("Current USB state is: "); puthex(pci_read16(0, 31, 2, 0xC0)); puts(" "); puthex(pci_read16(0, 31, 4, 0xC0)); puts("\n");
-	puts("Current SMI state is: "); puthex(inl(0x830)); puts("\n");
-	puts("Current SMRAMC state is: "); puthex(pci_read8(0, 0, 0, 0x70)); puts("\n");
+	outputf("Current USB state is: %04x %04x", pci_read16(0, 31, 2, 0xC0), pci_read16(0, 31, 4, 0xC0));
+	outputf("Current SMI state is: %08x", inl(0x830));
+	outputf("Current SMRAMC state is: %02x", pci_read8(0, 0, 0, 0x70));
 	
 	smi_disable();
 	
@@ -98,7 +90,7 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 	}
 	puts("\n");
 
-	puts("Now returning to real mode.\n");	
+	outputf("Now returning to real mode.");
 	memcpy((void *)0x4000, _binary_realmode_bin_start, (int)&_binary_realmode_bin_size);
 	realmode();	// goodbye!
 }

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <vga-overlay.h>
 #include <reg-82801b.h>
+#include <output.h>
 
 static uint16_t _get_PMBASE()
 {
@@ -39,25 +40,25 @@ void smi_poll()
 	
 	if (sts & ICH2_SMI_STS_BIOS_STS)
 	{
-		dolog("Unhandled: BIOS_STS");
+		output("Unhandled: BIOS_STS");
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_BIOS_STS);
 	}
 	
 	if (sts & ICH2_SMI_STS_LEGACY_USB_STS)
 	{
-		dolog("Unhandled: LEGACY_USB_STS");
+		output("Unhandled: LEGACY_USB_STS");
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_LEGACY_USB_STS);
 	}
 	
 	if (sts & ICH2_SMI_STS_SLP_SMI_STS)
 	{
-		dolog("Unhandled: SLP_SMI_STS");
+		output("Unhandled: SLP_SMI_STS");
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_SLP_SMI_STS);
 	}
 	
 	if (sts & ICH2_SMI_STS_APM_STS)
 	{
-		dolog("Unhandled: APM_STS");
+		output("Unhandled: APM_STS");
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_APM_STS);
 	}
 	
@@ -78,25 +79,25 @@ void smi_poll()
 		pm1_sts &= pm1_en;
 		if (pm1_sts & ICH2_PM1_STS_RTC_STS)
 		{
-			dolog("Unhandled: PM1_STS: RTC_STS");
+			output("Unhandled: PM1_STS: RTC_STS");
 			outw(_get_PMBASE() + ICH2_PMBASE_PM1_STS, ICH2_PM1_STS_RTC_STS);
 		}
 		
 		if (pm1_sts & ICH2_PM1_STS_PWRBTN_STS)
 		{
-			dolog("Unhandled: PM1_STS: PWRBTN_STS");
+			output("Unhandled: PM1_STS: PWRBTN_STS");
 			outw(_get_PMBASE() + ICH2_PMBASE_PM1_STS, ICH2_PM1_STS_PWRBTN_STS);
 		}
 		
 		if (pm1_sts & ICH2_PM1_STS_GBL_STS)
 		{
-			dolog("Unhandled: PM1_STS: GBL_STS");
+			output("Unhandled: PM1_STS: GBL_STS");
 			outw(_get_PMBASE() + ICH2_PMBASE_PM1_STS, ICH2_PM1_STS_GBL_STS);
 		}
 		
 		if (pm1_sts & ICH2_PM1_STS_TMROF_STS)
 		{
-			dolog("Unhandled: PM1_STS: TMROF_STS");
+			output("Unhandled: PM1_STS: TMROF_STS");
 			outw(_get_PMBASE() + ICH2_PMBASE_PM1_STS, ICH2_PM1_STS_TMROF_STS);
 		}
 		
@@ -106,18 +107,18 @@ void smi_poll()
 	if (sts & ICH2_SMI_STS_GPE0_STS)
 	{
 		/* XXX -- trawl through GPE0_STS to see what happened */
-		dolog("XXX Unhandled: GPE0_STS (expect lockup)");
+		output("XXX Unhandled: GPE0_STS (expect lockup)");
 	}
 	
 	if (sts & ICH2_SMI_STS_GPE1_STS)
 	{
 		/* XXX -- trawl through GPE1_STS to see what happened */
-		dolog("XXX Unhandled: GPE1_STS (expect lockup)");
+		output("XXX Unhandled: GPE1_STS (expect lockup)");
 	}
 	
 	if (sts & ICH2_SMI_STS_MCSMI_STS)
 	{
-		dolog("Unhandled: MCSMI_STS");
+		output("Unhandled: MCSMI_STS");
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_MCSMI_STS);
 	}
 	
@@ -127,37 +128,37 @@ void smi_poll()
 		unsigned long devact_sts = inl(_get_PMBASE() + ICH2_PMBASE_DEVACT_STS);
 		unsigned long devtrap_en = inl(_get_PMBASE() + ICH2_PMBASE_DEVTRAP_EN);
 		if (((mon_smi & 0x0F00) >> 8) & ((mon_smi & 0xF000) >> 12))
-			dologf("Unhandled: MON_SMI (%04x)", mon_smi);
+			outputf("Unhandled: MON_SMI (%04x)", mon_smi);
 		if (devact_sts & devtrap_en)
-			dologf("Unhandled: DEVTRAP (%08x)", devact_sts & devtrap_en);
+			outputf("Unhandled: DEVTRAP (%08x)", devact_sts & devtrap_en);
 	}
 	
 	if (sts & ICH2_SMI_STS_TCO_STS)
 	{
-		dolog("Unhandled: TCO_STS");
+		output("Unhandled: TCO_STS");
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_TCO_STS);
 	}
 	
 	if (sts & ICH2_SMI_STS_PERIODIC_STS)
 	{
-		dolog("Unhandled: PERIODIC_STS");
+		output("Unhandled: PERIODIC_STS");
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_PERIODIC_STS);
 	}
 	
 	if (sts & ICH2_SMI_STS_SERIRQ_SMI_STS)
 	{
-		dolog("Unhandled: SERIRQ_SMI_STS");
+		output("Unhandled: SERIRQ_SMI_STS");
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_SERIRQ_SMI_STS);
 	}
 	
 	if (sts & ICH2_SMI_STS_SMBUS_SMI_STS)
 	{
-		dolog("Unhandled: SMBUS_SMI_STS");
+		output("Unhandled: SMBUS_SMI_STS");
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_SMBUS_SMI_STS);
 	}
 	
 	if (smi_status() & ~ICH2_SMI_STS_PM1_STS_REG)	/* Either the chipset is buggy, or we are. */
-		dologf("WARN: couldn't clear SMI_STS! (%08x)", smi_status());
+		outputf("WARN: couldn't clear SMI_STS! (%08x)", smi_status());
 	
 	outl(_get_PMBASE() + ICH2_PMBASE_SMI_EN,
 		inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) |

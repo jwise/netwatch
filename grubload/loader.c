@@ -1,4 +1,6 @@
 #include <elf.h>
+#include <output.h>
+#include <minilib.h>
 
 static const unsigned char elf_ident[4] = { 0x7F, 'E', 'L', 'F' }; 
 
@@ -8,7 +10,7 @@ int load_elf (char * buf, int size) {
 	Elf32_Shdr * elf_sec_hdrs = (Elf32_Shdr *) (buf + elf_hdr->e_shoff);
 
 	/* Sanity check on ELF file */
-	if (memcmp(elf_hdr->e_ident, elf_ident, sizeof(elf_ident))) return -1;
+	if (memcmp((void *)elf_hdr->e_ident, (void *)elf_ident, sizeof(elf_ident))) return -1;
 	if (elf_hdr->e_type != ET_EXEC) return -1;
 	if (elf_hdr->e_machine != EM_386) return -1;
 	if (elf_hdr->e_version != EV_CURRENT) return -1;
@@ -29,17 +31,13 @@ int load_elf (char * buf, int size) {
 		char * section_name = string_table + elf_sec_hdrs[i].sh_name;
 
 		if ((elf_sec_hdrs[i].sh_type != SHT_PROGBITS) || !(elf_sec_hdrs[i].sh_flags & SHF_ALLOC)) {
-			puts("Skipping ");
-			puts(section_name);
-			puts("\n");
+			outputf("Skipping %s", section_name);
 			continue;
 		}
 
-		puts("Loading ");
-		puts(section_name);
-		puts("\n");
+		outputf("Loading %s at %08x", section_name, elf_sec_hdrs[i].sh_addr);
 
-		memcpy(elf_sec_hdrs[i].sh_addr,
+		memcpy((void *)elf_sec_hdrs[i].sh_addr,
 		       buf + elf_sec_hdrs[i].sh_offset,
 		       elf_sec_hdrs[i].sh_size);
 	}
