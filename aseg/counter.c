@@ -3,9 +3,6 @@
 #include <video_defines.h>
 #include <minilib.h>
 #include <smi.h>
-
-char thestr[512];
-
 #include "vga-overlay.h"
 
 unsigned int counter = 0;
@@ -13,7 +10,6 @@ unsigned long pcisave;
 unsigned char vgasave;
 
 void pci_dump() {
-	char s[40];
 	unsigned long cts;
 	static int curdev = 0;	/* 0 if kbd, 1 if mouse */
 		
@@ -39,11 +35,8 @@ void pci_dump() {
 	{
 		unsigned char b;
 		
-		strcpy(s, "WRITxxxxxxxxxxxxxxxx");
 		b = *(unsigned char*)0xAFFD0 /* EAX */;
-		tohex(s+4, cts);
-		tohex(s+12, b);
-		dolog(s);
+		dologf("WRITE: %08x (%02x)", cts, b);
 		outb(cts & 0xFFFF, b);
 		break;
 	}
@@ -57,14 +50,16 @@ void pci_dump() {
 
 void smi_entry(void)
 {
+	char statstr[512];
+	
 	pcisave = inl(0xCF8);
 	vgasave = inb(0x3D4);
 	
 	counter++;
 	outb(0x80, (counter & 0xFF));
 	
-	sprintf(thestr, "15-412! %08x %08x", smi_status(), counter);
-	strblit(thestr, 0, 0);
+	sprintf(statstr, "15-412! %08x %08x", smi_status(), counter);
+	strblit(statstr, 0, 0);
 	
 	if (inl(0x834) & 0x1000)
 	{
