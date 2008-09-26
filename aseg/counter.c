@@ -100,6 +100,9 @@ void smi_entry(void)
 	sprintf(statstr, "15-412! %08x %08x", smi_status(), counter);
 	strblit(statstr, 0, 0);
 	
+	extern void do_bother();
+	do_bother();
+	
 	if (inl(0x840) & 0x1000)
 	{
 		pci_dump();

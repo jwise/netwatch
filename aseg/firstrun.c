@@ -12,18 +12,32 @@ extern void timer_handler(smi_event_t ev);
 extern void kbc_handler(smi_event_t ev);
 extern void gbl_rls_handler(smi_event_t ev);
 
+static int found = 0, _bus, _dev, _fn;
+
+void do_bother()
+{
+	int bar;
+
+	if (!found)
+		return;
+		
+	pci_write16(_bus, _dev, _fn, 0x04, 0x00);
+	for (bar = 0; bar < 6; bar++)
+		pci_write32(_bus, _dev, _fn, 0x10 + bar*4, 0x1FFFFFFF);
+}
+
 int bother_3c905(pci_dev_t *dev)
 {
 	if (dev->vid == 0x10B7 || dev->did == 0x9200)
 	{
-		int bar;
-		
 		outputf("Found a 3c905 to bother");
-		pci_write16(dev->bus, dev->dev, dev->fn, 0x04, 0x00);
 		
-		for (bar = 0; bar < 6; bar++)
-			if (dev->bars[bar].type != PCI_BAR_NONE)
-				pci_write32(dev->bus, dev->dev, dev->fn, 0x10 + bar*4, 0);
+		_bus = dev->bus;
+		_dev = dev->dev;
+		_fn = dev->fn;
+		found = 1;
+		
+		do_bother();
 		
 		return 1;
 	}
