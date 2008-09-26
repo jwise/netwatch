@@ -42,7 +42,10 @@ void smi_poll()
 	
 	if (sts & ICH2_SMI_STS_BIOS_STS)
 	{
-		output("Unhandled: BIOS_STS");
+		if (_handlers[SMI_EVENT_GBL_RLS] == SMI_HANDLER_NONE)
+			output("Unhandled: BIOS_STS");
+		else if (_handlers[SMI_EVENT_GBL_RLS] != SMI_HANDLER_IGNORE)
+			_handlers[SMI_EVENT_GBL_RLS](SMI_EVENT_GBL_RLS);
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_BIOS_STS);
 	}
 	
@@ -205,6 +208,11 @@ int smi_enable_event(smi_event_t ev)
 			inl(_get_PMBASE() + ICH2_PMBASE_DEVTRAP_EN) |
 				ICH2_DEVTRAP_EN_KBC_TRP_EN);
 		return 0;
+	case SMI_EVENT_GBL_RLS:
+		outl(_get_PMBASE() + ICH2_PMBASE_SMI_EN,
+			inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) |
+				ICH2_SMI_EN_BIOS_EN);
+		return 0;
 	default:
 		return -1;
 	}
@@ -223,6 +231,11 @@ int smi_disable_event(smi_event_t ev)
 		outl(_get_PMBASE() + ICH2_PMBASE_DEVTRAP_EN,
 			inl(_get_PMBASE() + ICH2_PMBASE_DEVTRAP_EN) &
 				~ICH2_DEVTRAP_EN_KBC_TRP_EN);
+		return 0;
+	case SMI_EVENT_GBL_RLS:
+		outl(_get_PMBASE() + ICH2_PMBASE_SMI_EN,
+			inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) &
+				~ICH2_SMI_EN_BIOS_EN);
 		return 0;
 	default:
 		return -1;

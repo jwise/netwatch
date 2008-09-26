@@ -10,6 +10,7 @@ extern unsigned long smi_status();	/* Architecturally defined; for debugging onl
 typedef enum {
 	SMI_EVENT_FAST_TIMER = 0,
 	SMI_EVENT_DEVTRAP_KBC,
+	SMI_EVENT_GBL_RLS,
 	SMI_EVENT_MAX
 } smi_event_t;
 

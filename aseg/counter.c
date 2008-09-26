@@ -65,6 +65,15 @@ void kbc_handler(smi_event_t ev)
 	pci_dump();
 }
 
+void gbl_rls_handler(smi_event_t ev)
+{
+	unsigned long ecx;
+	
+	ecx = *(unsigned char*)0xAFFD4;
+	dologf("ECX was %08x", ecx);
+	*(unsigned long*)0xAFFD4 = 0x2BADD00D;
+}
+
 void smi_entry(void)
 {
 	char statstr[512];
