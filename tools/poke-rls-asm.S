@@ -1,7 +1,6 @@
 .global poke
 poke:
-	# Preload registers: $0x1BADD00D
-	mov $0x1BADD00D, %ecx
+	mov 8(%esp), %ecx
 
 	# Parameter: I/O port to set bit 2 of
 	mov 4(%esp), %edx
