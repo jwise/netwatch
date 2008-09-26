@@ -16,4 +16,29 @@ uint32_t pci_read32(int bus, int slot, int fn, int addr);
 uint16_t pci_read16(int bus, int slot, int fn, int addr);
 uint8_t pci_read8(int bus, int slot, int fn, int addr);
 
+/* Hardware-agnostic functions implemented by pci.c */
+typedef enum {
+	PCI_BAR_NONE = 0,
+	PCI_BAR_MEMORY32,
+	PCI_BAR_MEMORY64,
+	PCI_BAR_IO
+} pci_bar_type_t;
+
+typedef struct pci_bar {
+	pci_bar_type_t type;
+	unsigned char prefetchable;
+	unsigned long addr;
+} pci_bar_t;
+
+typedef struct pci_dev {
+	unsigned short vid, did;
+	int bus, dev, fn;
+	pci_bar_t bars[6];
+} pci_dev_t;
+
+typedef int (*pci_probe_fn_t)(pci_dev_t *);
+
+void pci_bus_enum();
+int pci_probe(pci_probe_fn_t probe);
+
 #endif

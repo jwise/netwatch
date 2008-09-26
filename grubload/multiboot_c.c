@@ -54,7 +54,6 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 	outputf("Current USB state is: %04x %04x", pci_read16(0, 31, 2, 0xC0), pci_read16(0, 31, 4, 0xC0));
 	outputf("Current SMI state is: %08x", inl(0x830));
 	
-	
 	smi_disable();
 	
 	/* Try really hard to shut up USB_LEGKEY. */
@@ -62,6 +61,8 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 	pci_write16(0, 31, 2, 0xC0, 0);
 	pci_write16(0, 31, 4, 0xC0, pci_read16(0, 31, 4, 0xC0));
 	pci_write16(0, 31, 4, 0xC0, 0);
+	
+	pci_bus_enum();
 
 	/* Open the SMRAM aperture and load our ELF. */
 	old_smramc = smram_save_state();
