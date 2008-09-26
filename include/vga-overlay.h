@@ -7,4 +7,6 @@ void dolog(char *s);
 void dologf(char *s, ...);
 void outlog();
 
+void dump_log(char *buffer);
+
 #endif

@@ -35,7 +35,7 @@ void strblit(char *src, int row, int col)
 	smram_state_t old_state = smram_save_state();
 
 	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
-	
+
 	while (*src)
 	{
 		*(destp++) = *(src++);
@@ -84,3 +84,7 @@ void dologf(const char *fmt, ...)
 	va_end(va);
 }
 void (*outputf)(const char *s, ...) = dologf;
+
+void dump_log (char * target) {
+	memcpy(target, logents, sizeof(logents));
+}

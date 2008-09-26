@@ -81,7 +81,12 @@ void gbl_rls_handler(smi_event_t ev)
 
 	dologf("Got packet: type %08x", packet->type);
 
-	*(unsigned long*)0xAFFD4 = 0x2BADD00D;
+	if (packet->type == 42) {
+		dump_log((char *)packet->data);
+		*(unsigned long*)0xAFFD4 = 42;
+	} else {
+		*(unsigned long*)0xAFFD4 = 0x2BADD00D;
+	}
 }
 
 void smi_entry(void)

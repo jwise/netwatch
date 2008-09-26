@@ -28,7 +28,8 @@ int main(int argc, char **argv)
 	packet_t * packet = (packet_t *)memalign(4096, sizeof(packet_t));
 
 	packet->signature = 0x1BADD00D;
-	packet->type = 0xF00FC7C8;
+	packet->type = 42;
+	strcpy(packet->data, "hello, world!");
 
 	if (iopl(3) < 0)
 	{
@@ -38,4 +39,11 @@ int main(int argc, char **argv)
 	
 	res = poke(_get_PMBASE() + 0x04, (void *)packet);
 	printf("returned %p\n", res);
+
+	if (res == 42) {
+		printf("%s\n", packet->data);
+		printf("%s\n", packet->data+41);
+		printf("%s\n", packet->data+82);
+		printf("%s\n", packet->data+123);
+	}
 }
