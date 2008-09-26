@@ -4,6 +4,7 @@
 #include <minilib.h>
 #include <smi.h>
 #include "vga-overlay.h"
+#include "packet.h"
 
 unsigned int counter = 0;
 unsigned long pcisave;
@@ -70,7 +71,16 @@ void gbl_rls_handler(smi_event_t ev)
 	unsigned long ecx;
 	
 	ecx = *(unsigned long*)0xAFFD4;
-	dologf("ECX was %08x", ecx);
+
+	packet_t * packet = check_packet(ecx);
+	if (!packet)
+	{
+		dologf("WARN: bad packet at %08x", ecx);
+		return;
+	}
+
+	dologf("Got packet: type %08x", packet->type);
+
 	*(unsigned long*)0xAFFD4 = 0x2BADD00D;
 }
 
