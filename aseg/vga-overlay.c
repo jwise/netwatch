@@ -5,7 +5,11 @@
 #include <stdarg.h>
 #include <output.h>
 
-static char logents[4][41] = {{0}};
+#define LOGLEN 96
+#define LOG_ONSCREEN 4
+
+static char logents[LOGLEN][41] = {{0}};
+static int prodptr = 0;
 
 #define VRAM_BASE		0xA0000UL
 #define TEXT_CONSOLE_OFFSET	0x18000UL 
@@ -54,7 +58,7 @@ void outlog()
 
 	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
 
-	for (y = 0; y < 4; y++)
+	for (y = 0; y < LOG_ONSCREEN; y++)
 		for (x = 40; x < 80; x++)
 		{
 			basep[y*80*2+x*2] = ' ';
@@ -63,14 +67,14 @@ void outlog()
 
 	smram_restore_state(old_state);
 	
-	for (y = 0; y < 4; y++)
-		strblit(logents[y], y, 40);
+	for (y = -LOG_ONSCREEN; y < 0; y++)
+		strblit(logents[(y + prodptr) % LOGLEN], y + LOG_ONSCREEN, 40);
 }
 
 void dolog(const char *s)
 {
-	memmove(logents[0], logents[1], sizeof(logents[0])*3);
-	strcpy(logents[3], s);
+	strcpy(logents[prodptr], s);
+	prodptr = (prodptr + 1) % LOGLEN;
 }
 void (*output)(const char *s) = dolog;
 
@@ -78,10 +82,10 @@ void dologf(const char *fmt, ...)
 {
 	va_list va;
 	
-	memmove(logents[0], logents[1], sizeof(logents[0])*3);
 	va_start(va, fmt);
-	vsnprintf(logents[3], 40, fmt, va);
+	vsnprintf(logents[prodptr], 40, fmt, va);
 	va_end(va);
+	prodptr = (prodptr + 1) % LOGLEN;
 }
 void (*outputf)(const char *s, ...) = dologf;
 

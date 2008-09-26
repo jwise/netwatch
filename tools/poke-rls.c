@@ -41,9 +41,8 @@ int main(int argc, char **argv)
 	printf("returned %p\n", res);
 
 	if (res == 42) {
-		printf("%s\n", packet->data);
-		printf("%s\n", packet->data+41);
-		printf("%s\n", packet->data+82);
-		printf("%s\n", packet->data+123);
+		int i;
+		for (i = 0; i < 96; i++)
+			printf("%s\n", packet->data + i * 41);
 	}
 }
