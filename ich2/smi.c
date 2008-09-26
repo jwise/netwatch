@@ -129,6 +129,21 @@ void smi_poll()
 		unsigned short mon_smi = inw(_get_PMBASE() + ICH2_PMBASE_MON_SMI);
 		unsigned long devact_sts = inl(_get_PMBASE() + ICH2_PMBASE_DEVACT_STS);
 		unsigned long devtrap_en = inl(_get_PMBASE() + ICH2_PMBASE_DEVTRAP_EN);
+		
+		if (devact_sts & ICH2_DEVACT_STS_KBC_ACT_STS)
+		{
+			if (_handlers[SMI_EVENT_DEVTRAP_KBC] == SMI_HANDLER_NONE)
+				output("Unhandled: DEVACT_KBC_ACT_STS");
+			else if (_handlers[SMI_EVENT_DEVTRAP_KBC] != SMI_HANDLER_IGNORE)
+				_handlers[SMI_EVENT_DEVTRAP_KBC](SMI_EVENT_DEVTRAP_KBC);
+			outl(_get_PMBASE() + ICH2_PMBASE_DEVACT_STS, ICH2_DEVACT_STS_KBC_ACT_STS);
+		}
+		
+		/* Refresh register cache so that we can print unhandleds as needed. */
+		mon_smi = inw(_get_PMBASE() + ICH2_PMBASE_MON_SMI);
+		devact_sts = inl(_get_PMBASE() + ICH2_PMBASE_DEVACT_STS);
+		devtrap_en = inl(_get_PMBASE() + ICH2_PMBASE_DEVTRAP_EN);
+		
 		if (((mon_smi & 0x0F00) >> 8) & ((mon_smi & 0xF000) >> 12))
 			outputf("Unhandled: MON_SMI (%04x)", mon_smi);
 		if (devact_sts & devtrap_en)
@@ -185,6 +200,11 @@ int smi_enable_event(smi_event_t ev)
 			inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) |
 				ICH2_SMI_EN_SWSMI_TMR_EN);
 		return 0;
+	case SMI_EVENT_DEVTRAP_KBC:
+		outl(_get_PMBASE() + ICH2_PMBASE_DEVTRAP_EN,
+			inl(_get_PMBASE() + ICH2_PMBASE_DEVTRAP_EN) |
+				ICH2_DEVTRAP_EN_KBC_TRP_EN);
+		return 0;
 	default:
 		return -1;
 	}
@@ -198,6 +218,11 @@ int smi_disable_event(smi_event_t ev)
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_EN,
 			inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) &
 				~ICH2_SMI_EN_SWSMI_TMR_EN);
+		return 0;
+	case SMI_EVENT_DEVTRAP_KBC:
+		outl(_get_PMBASE() + ICH2_PMBASE_DEVTRAP_EN,
+			inl(_get_PMBASE() + ICH2_PMBASE_DEVTRAP_EN) &
+				~ICH2_DEVTRAP_EN_KBC_TRP_EN);
 		return 0;
 	default:
 		return -1;

@@ -60,6 +60,11 @@ void timer_handler(smi_event_t ev)
 	outlog();
 }
 
+void kbc_handler(smi_event_t ev)
+{
+	pci_dump();
+}
+
 void smi_entry(void)
 {
 	char statstr[512];
@@ -71,14 +76,6 @@ void smi_entry(void)
 	sprintf(statstr, "15-412! %08x %08x", smi_status(), counter);
 	strblit(statstr, 0, 0);
 	
-	if (inl(0x834) & 0x1000)
-	{
-		if (inl(0x844) & 0x1000)	/* devact_sts */
-		{
-			pci_dump();
-			outl(0x844, 0x1000);	/* ack it */
-		}
-	}
 	if (inl(0x840) & 0x1000)
 	{
 		pci_dump();
