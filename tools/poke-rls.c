@@ -2,6 +2,7 @@
 #include <reg-82801b.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 static uint16_t _get_PMBASE()
 {
@@ -14,7 +15,7 @@ static uint16_t _get_PMBASE()
 }
 
 
-extern unsigned int poke(short addr);
+extern unsigned int poke(unsigned long addr);
 
 int main(int argc, char **argv)
 {
@@ -25,7 +26,7 @@ int main(int argc, char **argv)
 		perror("iopl");
 		return 1;
 	}
-
+	
 	res = poke(_get_PMBASE() + 0x04);
 	printf("found %p\n", res);
 }
