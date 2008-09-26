@@ -3,9 +3,6 @@
 #include <video_defines.h>
 #include <minilib.h>
 #include <smi.h>
-
-char thestr[512];
-
 #include "vga-overlay.h"
 
 unsigned int counter = 0;
@@ -13,7 +10,6 @@ unsigned long pcisave;
 unsigned char vgasave;
 
 void pci_dump() {
-	char s[40];
 	unsigned long cts;
 	static int curdev = 0;	/* 0 if kbd, 1 if mouse */
 		
@@ -39,11 +35,8 @@ void pci_dump() {
 	{
 		unsigned char b;
 		
-		strcpy(s, "WRITxxxxxxxxxxxxxxxx");
 		b = *(unsigned char*)0xAFFD0 /* EAX */;
-		tohex(s+4, cts);
-		tohex(s+12, b);
-		dolog(s);
+		dologf("WRITE: %08x (%02x)", cts, b);
 		outb(cts & 0xFFFF, b);
 		break;
 	}
@@ -55,25 +48,34 @@ void pci_dump() {
 	outl(0x840, 0x0100);
 }
 
+void timer_handler(smi_event_t ev)
+{
+	static unsigned int ticks = 0;
+	
+	smi_disable_event(SMI_EVENT_FAST_TIMER);
+	smi_enable_event(SMI_EVENT_FAST_TIMER);
+	
+	outb(0x80, (ticks++) & 0xFF);
+	
+	outlog();
+}
+
+void kbc_handler(smi_event_t ev)
+{
+	pci_dump();
+}
+
 void smi_entry(void)
 {
+	char statstr[512];
+	
 	pcisave = inl(0xCF8);
 	vgasave = inb(0x3D4);
 	
 	counter++;
-	outb(0x80, (counter & 0xFF));
+	sprintf(statstr, "15-412! %08x %08x", smi_status(), counter);
+	strblit(statstr, 0, 0);
 	
-	sprintf(thestr, "15-412! %08x %08x", smi_status(), counter);
-	strblit(thestr, 0, 0);
-	
-	if (inl(0x834) & 0x1000)
-	{
-		if (inl(0x844) & 0x1000)	/* devact_sts */
-		{
-			pci_dump();
-			outl(0x844, 0x1000);	/* ack it */
-		}
-	}
 	if (inl(0x840) & 0x1000)
 	{
 		pci_dump();
@@ -82,7 +84,6 @@ void smi_entry(void)
 	}
 
 	smi_poll();
-	outlog();
 	
 	outl(0xCF8, pcisave);
 	outb(0x3D4, vgasave);
