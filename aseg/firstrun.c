@@ -7,6 +7,8 @@
 
 extern int _bss, _bssend;
 
+extern void timer_handler(smi_event_t ev);
+
 void __firstrun_start() {
 	unsigned char *bp;
 	smram_state_t smram;
@@ -26,7 +28,9 @@ void __firstrun_start() {
 	pci_write16(0, 31, 4, 0xC0, 0);
 
 	/* Turn on the SMIs we want */
-	outb(0x830, inb(0x830) | ICH2_SMI_EN_SWSMI_TMR_EN);
+	smi_disable();
+	smi_register_handler(SMI_EVENT_FAST_TIMER, timer_handler);
+	smi_enable_event(SMI_EVENT_FAST_TIMER);
 	outb(0x848, ICH2_DEVTRAP_EN_KBC_TRP_EN);
 	smi_enable();
 	

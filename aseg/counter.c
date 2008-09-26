@@ -48,6 +48,18 @@ void pci_dump() {
 	outl(0x840, 0x0100);
 }
 
+void timer_handler(smi_event_t ev)
+{
+	static unsigned int ticks = 0;
+	
+	smi_disable_event(SMI_EVENT_FAST_TIMER);
+	smi_enable_event(SMI_EVENT_FAST_TIMER);
+	
+	outb(0x80, (ticks++) & 0xFF);
+	
+	outlog();
+}
+
 void smi_entry(void)
 {
 	char statstr[512];
@@ -56,8 +68,6 @@ void smi_entry(void)
 	vgasave = inb(0x3D4);
 	
 	counter++;
-	outb(0x80, (counter & 0xFF));
-	
 	sprintf(statstr, "15-412! %08x %08x", smi_status(), counter);
 	strblit(statstr, 0, 0);
 	
@@ -77,7 +87,6 @@ void smi_entry(void)
 	}
 
 	smi_poll();
-	outlog();
 	
 	outl(0xCF8, pcisave);
 	outb(0x3D4, vgasave);

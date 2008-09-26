@@ -6,6 +6,8 @@
 #include <reg-82801b.h>
 #include <output.h>
 
+static smi_handler_t _handlers[SMI_EVENT_MAX] = {0};
+
 static uint16_t _get_PMBASE()
 {
 	static long pmbase = -1;
@@ -64,11 +66,11 @@ void smi_poll()
 	
 	if (sts & ICH2_SMI_STS_SWSMI_TMR_STS)	// Ack it, then request another.
 	{
+		if (_handlers[SMI_EVENT_FAST_TIMER] == SMI_HANDLER_NONE)
+			output("Unhandled: SWSMI_TMR_STS");
+		else if (_handlers[SMI_EVENT_FAST_TIMER] != SMI_HANDLER_IGNORE)
+			_handlers[SMI_EVENT_FAST_TIMER](SMI_EVENT_FAST_TIMER);
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_STS, ICH2_SMI_STS_SWSMI_TMR_STS);
-		outl(_get_PMBASE() + ICH2_PMBASE_SMI_EN,
-			inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) & ~ICH2_SMI_EN_SWSMI_TMR_EN);
-		outl(_get_PMBASE() + ICH2_PMBASE_SMI_EN,
-			inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) | ICH2_SMI_EN_SWSMI_TMR_EN);
 	}
 	
 	if (sts & ICH2_SMI_STS_PM1_STS_REG)
@@ -164,4 +166,40 @@ void smi_poll()
 		inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) |
 			ICH2_SMI_EN_EOS |
 			ICH2_SMI_EN_GBL_SMI_EN);
+}
+
+int smi_register_handler(smi_event_t ev, smi_handler_t hnd)
+{
+	if (ev >= SMI_EVENT_MAX)
+		return -1;
+	_handlers[ev] = hnd;
+	return 0;
+}
+
+int smi_enable_event(smi_event_t ev)
+{
+	switch(ev)
+	{
+	case SMI_EVENT_FAST_TIMER:
+		outl(_get_PMBASE() + ICH2_PMBASE_SMI_EN,
+			inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) |
+				ICH2_SMI_EN_SWSMI_TMR_EN);
+		return 0;
+	default:
+		return -1;
+	}
+}
+
+int smi_disable_event(smi_event_t ev)
+{
+	switch(ev)
+	{
+	case SMI_EVENT_FAST_TIMER:
+		outl(_get_PMBASE() + ICH2_PMBASE_SMI_EN,
+			inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) &
+				~ICH2_SMI_EN_SWSMI_TMR_EN);
+		return 0;
+	default:
+		return -1;
+	}
 }
