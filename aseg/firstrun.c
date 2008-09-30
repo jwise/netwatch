@@ -5,44 +5,13 @@
 #include <output.h>
 #include "vga-overlay.h"
 #include <smram.h>
+#include "3c905.h"
 
 extern int _bss, _bssend;
 
 extern void timer_handler(smi_event_t ev);
 extern void kbc_handler(smi_event_t ev);
 extern void gbl_rls_handler(smi_event_t ev);
-
-static int found = 0, _bus, _dev, _fn;
-
-void do_bother()
-{
-	int bar;
-
-	if (!found)
-		return;
-		
-	pci_write16(_bus, _dev, _fn, 0x04, 0x00);
-	for (bar = 0; bar < 6; bar++)
-		pci_write32(_bus, _dev, _fn, 0x10 + bar*4, 0x1FFFFFFF);
-}
-
-int bother_3c905(pci_dev_t *dev)
-{
-	if (dev->vid == 0x10B7 || dev->did == 0x9200)
-	{
-		outputf("Found a 3c905 to bother");
-		
-		_bus = dev->bus;
-		_dev = dev->dev;
-		_fn = dev->fn;
-		found = 1;
-		
-		do_bother();
-		
-		return 1;
-	}
-	return 0;
-}
 
 void __firstrun_start() {
 	unsigned char *bp;
@@ -65,7 +34,7 @@ void __firstrun_start() {
 	/* Turn on the SMIs we want */
 	smi_disable();
 	
-	pci_probe(bother_3c905);
+	eth_init();
 	
 	smi_register_handler(SMI_EVENT_FAST_TIMER, timer_handler);
 	smi_enable_event(SMI_EVENT_FAST_TIMER);
