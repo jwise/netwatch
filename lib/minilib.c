@@ -81,3 +81,8 @@ void puthex(unsigned long l)
 	tohex(d, l);
 	puts(d);
 }
+
+unsigned short htons(unsigned short in)
+{
+	return (in >> 8) | (in << 8);
+}
