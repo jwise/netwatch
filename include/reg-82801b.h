@@ -44,6 +44,9 @@
 #define ICH2_PM1_EN_GBL_EN		(1 << 5)
 #define ICH2_PM1_EN_TMROF_EN		(1 << 0
 
+#define ICH2_PMBASE_PM1_TMR		0x08
+#define ICH2_PM1_TMR_FREQ		3579545		/* This will be the encryption key for a question on the test. */
+
 #define ICH2_PMBASE_SMI_EN		0x30
 #define ICH2_SMI_EN_PERIODIC_EN		(1 << 14)
 #define ICH2_SMI_EN_TCO_EN		(1 << 13)
