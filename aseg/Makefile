@@ -3,7 +3,7 @@ CFLAGS=-I../include -I../include/raw -nostdlib -nostdinc -fno-builtin -D__RAW__ 
 
 OBJS=counter.o firstrun.o ../pci/pci-raw.o ../lib/minilib.o ../lib/console.o \
 	../ich2/smram-ich2.o ../ich2/smi.o vga-overlay.o packet.o ../lib/sprintf.o \
-	../lib/doprnt.o ../pci/pci.o 3c905.o ../ich2/ich2-timer.o
+	../lib/doprnt.o ../pci/pci.o ../net/net.o ../ich2/ich2-timer.o
 
 all: aseg.elf
 

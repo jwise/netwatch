@@ -5,7 +5,7 @@
 #include <output.h>
 #include "vga-overlay.h"
 #include <smram.h>
-#include "3c905.h"
+#include "../net/net.h"
 
 extern int _bss, _bssend;
 
