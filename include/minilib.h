@@ -16,5 +16,6 @@ extern int vsprintf(char *s, const char *fmt, va_list args);
 extern int vsnprintf(char *s, int size, const char *fmt, va_list args);
 extern int sprintf(char *s, const char *fmt, ...);
 extern int snprintf(char *s, int size, const char *fmt, ...);
+extern unsigned short htons(unsigned short in);
 
 #endif
