@@ -689,7 +689,6 @@ void a3c90x_disable(struct dev *dev)
  ***/
 static int a3c90x_probe(struct pci_dev * pci, void * data)
 {
-    struct nic *nic = (struct nic *)data;
     INF_3C90X.is3c556 = (pci->did == 0x6055);
  
     int i, c;

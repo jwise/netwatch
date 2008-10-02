@@ -1,8 +1,10 @@
 #include <pci.h>
 #include <output.h>
-#include "3c905.h"
+#include "net.h"
 
 static int found = 0, _bus, _dev, _fn;
+
+struct nic nic;
 
 static int bother_3c905(pci_dev_t *dev, void *nutrinus)
 {

@@ -3,7 +3,7 @@
 #include <video_defines.h>
 #include <minilib.h>
 #include <smi.h>
-#include "3c905.h"
+#include "../net/net.h"
 #include "vga-overlay.h"
 #include "packet.h"
 
