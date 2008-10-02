@@ -38,6 +38,7 @@
  */
 
 #include "etherboot-compat.h"
+#include "net.h"
 #include <timer.h>
 #include <io.h>
 #include <pci.h>
@@ -712,8 +713,8 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
 /*
     adjust_pci_dev(pci);
 */
-    nic->ioaddr = ioaddr & ~3;
-    nic->irqno = 0;
+    nic.ioaddr = ioaddr & ~3;
+    nic.irqno = 0;
 
     INF_3C90X.IOAddr = ioaddr & ~3;
     INF_3C90X.CurrentWindow = 255;
@@ -823,7 +824,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     /** Fill in our entry in the etherboot arp table **/
 /* XXX ? for lwip? 
     for(i=0;i<ETH_ALEN;i++)
-	nic->node_addr[i] = (eeprom[HWADDR_OFFSET + i/2] >> (8*((i&1)^1))) & 0xff;
+	nic.node_addr[i] = (eeprom[HWADDR_OFFSET + i/2] >> (8*((i&1)^1))) & 0xff;
 */
 
     /** Read the media options register, print a message and set default
@@ -963,8 +964,8 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
                                  cmdAcknowledgeInterrupt, 0x661);
 
     /* * Set our exported functions **/
-    nic->poll     = a3c90x_poll;
-    nic->transmit = a3c90x_transmit;
+    nic.poll     = a3c90x_poll;
+    nic.transmit = a3c90x_transmit;
 
     return 1;
 }

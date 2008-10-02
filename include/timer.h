@@ -4,4 +4,4 @@
 void oneshot_start_ms(unsigned long milliseconds);
 int oneshot_running(void);
 
-#endif TIMER_H
+#endif /* TIMER_H */

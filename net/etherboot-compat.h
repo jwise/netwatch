@@ -1,3 +1,6 @@
+#ifndef _ETHERBOOT_COMPAT_H
+#define _ETHERBOOT_COMPAT_H
+
 #define ETH_ALEN	6
 
 struct dev {
@@ -16,3 +19,5 @@ struct nic {
 };
 
 #define virt_to_bus(x) ((unsigned long)x)
+
+#endif

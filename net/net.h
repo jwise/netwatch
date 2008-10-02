@@ -6,4 +6,6 @@
 extern void eth_init();
 extern void eth_poll();
 
+extern struct nic nic;
+
 #endif
