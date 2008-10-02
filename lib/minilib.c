@@ -1,7 +1,7 @@
 #include "console.h"
 #include <minilib.h>
 
-void memcpy(void *dest, void *src, int bytes)
+void memcpy(void *dest, const void *src, int bytes)
 {
 	char * cdest = dest;
 	char * csrc = src;
