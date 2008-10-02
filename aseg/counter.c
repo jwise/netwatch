@@ -3,6 +3,7 @@
 #include <video_defines.h>
 #include <minilib.h>
 #include <smi.h>
+#include <pci-bother.h>
 #include "3c905.h"
 #include "vga-overlay.h"
 #include "packet.h"
@@ -96,6 +97,7 @@ void smi_entry(void)
 	
 	pcisave = inl(0xCF8);
 	vgasave = inb(0x3D4);
+	pci_unbother_all();
 	
 	counter++;
 	sprintf(statstr, "15-412! %08x %08x", smi_status(), counter);
@@ -112,6 +114,7 @@ void smi_entry(void)
 
 	smi_poll();
 	
+	pci_bother_all();
 	outl(0xCF8, pcisave);
 	outb(0x3D4, vgasave);
 }
