@@ -3,7 +3,7 @@
 
 #include <stdarg.h>
 
-extern void memcpy(void *dest, void *src, int bytes);
+extern void memcpy(void *dest, const void *src, int bytes);
 extern void memmove(void *dest, void *src, int bytes);
 extern int memcmp(const char *a2, const char *a1, int bytes);
 extern int strcmp(const char *a2, const char *a1);
