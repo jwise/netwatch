@@ -42,6 +42,7 @@
 #include <timer.h>
 #include <io.h>
 #include <pci.h>
+#include <pci-bother.h>
 #include <minilib.h>
 #include <output.h>
 
@@ -251,6 +252,7 @@ static struct
     RXD			ReceiveUPD;
     }
     INF_3C90X;
+static struct nic nic;
 
 
 /*** a3c90x_internal_IssueCommand: sends a command to the 3c90x card
@@ -713,6 +715,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
 /*
     adjust_pci_dev(pci);
 */
+    pci_bother_add(pci);
     nic.ioaddr = ioaddr & ~3;
     nic.irqno = 0;
 

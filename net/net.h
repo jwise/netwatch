@@ -5,7 +5,6 @@
 
 extern void eth_init();
 extern void eth_poll();
-
-extern struct nic nic;
+extern int eth_register(struct nic *nic);
 
 #endif
