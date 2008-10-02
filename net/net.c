@@ -3,6 +3,8 @@
 #include <output.h>
 #include "net.h"
 
+struct nic nic;
+
 static int bother_3c905(pci_dev_t *dev, void *nutrinus)
 {
 	if (dev->vid == 0x10B7 || dev->did == 0x9200)

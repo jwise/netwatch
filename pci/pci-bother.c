@@ -1,4 +1,5 @@
 #include <pci.h>
+#include <pci-bother.h>
 
 struct pci_bother {
 	int bus, dev, fn;
@@ -29,7 +30,7 @@ void pci_bother_all()
 	int i;
 	
 	for (i = 0; i < nbothers; i++)
-		pci_write16(bothers[i].bus, bothers[i].dev, bothers[i].fn, 0x0);
+		pci_write16(bothers[i].bus, bothers[i].dev, bothers[i].fn, 0x04, 0x0);
 }
 
 void pci_unbother_all()
@@ -37,5 +38,5 @@ void pci_unbother_all()
 	int i;
 	
 	for (i = 0; i < nbothers; i++)
-		pci_write16(bothers[i].bus, bothers[i].dev, bothers[i].fn, bothers[i].origstate);
+		pci_write16(bothers[i].bus, bothers[i].dev, bothers[i].fn, 0x04, bothers[i].origstate);
 }

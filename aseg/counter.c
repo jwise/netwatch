@@ -4,7 +4,7 @@
 #include <minilib.h>
 #include <smi.h>
 #include <pci-bother.h>
-#include "3c905.h"
+#include "../net/net.h"
 #include "vga-overlay.h"
 #include "packet.h"
 
