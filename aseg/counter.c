@@ -3,6 +3,7 @@
 #include <video_defines.h>
 #include <minilib.h>
 #include <smi.h>
+#include "3c905.h"
 #include "vga-overlay.h"
 #include "packet.h"
 
@@ -100,8 +101,7 @@ void smi_entry(void)
 	sprintf(statstr, "15-412! %08x %08x", smi_status(), counter);
 	strblit(statstr, 0, 0);
 	
-	extern void do_bother();
-	do_bother();
+	eth_poll();
 	
 	if (inl(0x840) & 0x1000)
 	{

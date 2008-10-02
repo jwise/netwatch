@@ -36,9 +36,25 @@ typedef struct pci_dev {
 	pci_bar_t bars[6];
 } pci_dev_t;
 
-typedef int (*pci_probe_fn_t)(pci_dev_t *);
+typedef int (*pci_probe_fn_t)(pci_dev_t *, void *data);
 
 void pci_bus_enum();
-int pci_probe(pci_probe_fn_t probe);
+int pci_probe(pci_probe_fn_t probe, void *data);
+
+typedef struct pci_id {
+	unsigned short vid, did;
+	const char *name, *friendlyname;
+} pci_id_t;
+
+#define PCI_ROM(a,b,c,d) {(a),(b),(c),(d)}
+
+typedef struct pci_driver {
+	const char *name;
+	pci_probe_fn_t probe;
+	pci_id_t *ids;
+	int id_count;
+} pci_driver_t;
+
+int pci_probe_driver(pci_driver_t driver);
 
 #endif

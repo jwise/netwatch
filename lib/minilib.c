@@ -3,8 +3,8 @@
 
 void memcpy(void *dest, const void *src, int bytes)
 {
-	char * cdest = dest;
-	char * csrc = src;
+	char *cdest = dest;
+	const char *csrc = src;
 	while (bytes--)
 		*(cdest++) = *(csrc++);
 }
