@@ -4,7 +4,7 @@
 
 static int found = 0, _bus, _dev, _fn;
 
-static int bother_3c905(pci_dev_t *dev)
+static int bother_3c905(pci_dev_t *dev, void *nutrinus)
 {
 	if (dev->vid == 0x10B7 || dev->did == 0x9200)
 	{
@@ -32,5 +32,5 @@ void eth_poll()
 
 void eth_init()
 {
-	pci_probe(bother_3c905);
+	pci_probe(bother_3c905, 0x0);
 }
