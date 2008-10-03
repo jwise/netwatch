@@ -254,6 +254,9 @@ static struct
     INF_3C90X;
 static struct nic nic;
 
+#define _outl(v,a) outl((a),(v))
+#define _outw(v,a) outw((a),(v))
+#define _outb(v,a) outb((a),(v))
 
 /*** a3c90x_internal_IssueCommand: sends a command to the 3c90x card
  ***/
@@ -268,7 +271,7 @@ a3c90x_internal_IssueCommand(int ioaddr, int cmd, int param)
 	val |= param;
 
 	/** Send the cmd to the cmd register **/
-	outw(val, ioaddr + regCommandIntStatus_w);
+	_outw(val, ioaddr + regCommandIntStatus_w);
 
 	/** Wait for the cmd to complete, if necessary **/
 	while (inw(ioaddr + regCommandIntStatus_w) & INT_CMDINPROGRESS);
@@ -298,30 +301,38 @@ a3c90x_internal_SetWindow(int ioaddr, int window)
  ***/
 static unsigned short
 a3c90x_internal_ReadEeprom(int ioaddr, int address)
-    {
-    unsigned short val;
+{
+	unsigned short val;
 
 	/** Select correct window **/
         a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winEepromBios0);
 
 	/** Make sure the eeprom isn't busy **/
-	while((1<<15) & inw(ioaddr + regEepromCommand_0_w));
+	do
+        {
+        	int i;
+        	for (i = 0; i < 165; i++)
+        		inb(0x80);	/* wait 165 usec */
+        }
+	while(0x8000 & inw(ioaddr + regEepromCommand_0_w));
 
 	/** Read the value. **/
 	if (INF_3C90X.is3c556)
-	 {
-	     outw(address + (0x230), ioaddr + regEepromCommand_0_w);
-	 }
+		_outw(address + (0x230), ioaddr + regEepromCommand_0_w);
 	else
-	 {
-	     outw(address + ((0x02)<<6), ioaddr + regEepromCommand_0_w);
-	 }
- 
-	while((1<<15) & inw(ioaddr + regEepromCommand_0_w));
-	val = inw(ioaddr + regEepromData_0_w);
+		_outw(address + 0x80, ioaddr + regEepromCommand_0_w);
 
-    return val;
-    }
+	do
+	{
+		int i;
+		for (i = 0; i < 165; i++)
+			inb(0x80);	/* wait 165 usec */
+	}
+	while(0x8000 & inw(ioaddr + regEepromCommand_0_w));
+	val = inw(ioaddr + regEepromData_0_w);
+	
+	return val;
+}
 
 
 #ifdef	CFG_3C90X_BOOTROM_FIX
@@ -340,20 +351,20 @@ a3c90x_internal_WriteEepromWord(int ioaddr, int address, unsigned short value)
 	while((1<<15) & inw(ioaddr + regEepromCommand_0_w));
 
 	/** Issue WriteEnable, and wait for completion. **/
-	outw(0x30, ioaddr + regEepromCommand_0_w);
+	_outw(0x30, ioaddr + regEepromCommand_0_w);
 	while((1<<15) & inw(ioaddr + regEepromCommand_0_w));
 
 	/** Issue EraseRegister, and wait for completion. **/
-	outw(address + ((0x03)<<6), ioaddr + regEepromCommand_0_w);
+	_outw(address + ((0x03)<<6), ioaddr + regEepromCommand_0_w);
 	while((1<<15) & inw(ioaddr + regEepromCommand_0_w));
 
 	/** Send the new data to the eeprom, and wait for completion. **/
-	outw(value, ioaddr + regEepromData_0_w);
-	outw(0x30, ioaddr + regEepromCommand_0_w);
+	_outw(value, ioaddr + regEepromData_0_w);
+	_outw(0x30, ioaddr + regEepromCommand_0_w);
 	while((1<<15) & inw(ioaddr + regEepromCommand_0_w));
 
 	/** Burn the new data into the eeprom, and wait for completion. **/
-	outw(address + ((0x01)<<6), ioaddr + regEepromCommand_0_w);
+	_outw(address + ((0x01)<<6), ioaddr + regEepromCommand_0_w);
 	while((1<<15) & inw(ioaddr + regEepromCommand_0_w));
 
     return 0;
@@ -427,14 +438,14 @@ static void a3c90x_reset(void)
      ** require explicit reset of values
      **/
     a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winAddressing2);
-    outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+0);
-    outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+2);
-    outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+4);
+    _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+0);
+    _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+2);
+    _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+4);
 
 #ifdef	CFG_3C90X_PRESERVE_XCVR
     /** Re-set the original InternalConfig value from before reset **/
     a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winTxRxOptions3);
-    outl(cfg, INF_3C90X.IOAddr + regInternalConfig_3_l);
+    _outl(cfg, INF_3C90X.IOAddr + regInternalConfig_3_l);
 
     /** enable DC converter for 10-Base-T **/
     if ((cfg&0x0300) == 0x0300)
@@ -448,7 +459,7 @@ static void a3c90x_reset(void)
     while (inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_CMDINPROGRESS)
 	;
     if (! INF_3C90X.isBrev)
-	outb(0x01, INF_3C90X.IOAddr + regTxFreeThresh_b);
+	_outb(0x01, INF_3C90X.IOAddr + regTxFreeThresh_b);
     a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdTxEnable, 0);
 
     /**
@@ -531,7 +542,7 @@ a3c90x_transmit(const char *dest_addr, unsigned int proto,
 	INF_3C90X.TransmitDPD.DataLength = size + (1<<31);
 
 	/** Send the packet **/
-	outl(virt_to_bus(&(INF_3C90X.TransmitDPD)),
+	_outl(virt_to_bus(&(INF_3C90X.TransmitDPD)),
 	     INF_3C90X.IOAddr + regDnListPtr_l);
 
 	/** End Stall and Wait for upload to complete. **/
@@ -554,7 +565,7 @@ a3c90x_transmit(const char *dest_addr, unsigned int proto,
 	status = inb(INF_3C90X.IOAddr + regTxStatus_b);
 
 	/** acknowledge transmit interrupt by writing status **/
-	outb(0x00, INF_3C90X.IOAddr + regTxStatus_b);
+	_outb(0x00, INF_3C90X.IOAddr + regTxStatus_b);
 
 	/** successful completion (sans "interrupt Requested" bit) **/
 	if ((status & 0xbf) == 0x80)
@@ -571,7 +582,7 @@ a3c90x_transmit(const char *dest_addr, unsigned int proto,
 	    {
 	    outputf("3C90X: Tx Status Overflow (%hhX)", status);
 	    for (i=0; i<32; i++)
-		outb(0x00, INF_3C90X.IOAddr + regTxStatus_b);
+		_outb(0x00, INF_3C90X.IOAddr + regTxStatus_b);
 	    /** must re-enable after max collisions before re-issuing tx **/
 	    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdTxEnable, 0);
 	    }
@@ -635,7 +646,7 @@ a3c90x_poll(struct nic *nic, int retrieve)
     INF_3C90X.ReceiveUPD.DataLength = 1536 + (1<<31);
 
     /** Submit the upload descriptor to the NIC **/
-    outl(virt_to_bus(&(INF_3C90X.ReceiveUPD)),
+    _outl(virt_to_bus(&(INF_3C90X.ReceiveUPD)),
          INF_3C90X.IOAddr + regUpListPtr_l);
 
     /** Wait for upload completion (upComplete(15) or upError (14)) **/
@@ -681,8 +692,8 @@ void a3c90x_disable(struct dev *dev)
 	/* reset and disable merge */
 	a3c90x_reset();
 	/* Disable the receiver and transmitter. */
-	outw(cmdRxDisable, INF_3C90X.IOAddr + regCommandIntStatus_w);
-	outw(cmdTxDisable, INF_3C90X.IOAddr + regCommandIntStatus_w);
+	_outw(cmdRxDisable, INF_3C90X.IOAddr + regCommandIntStatus_w);
+	_outw(cmdTxDisable, INF_3C90X.IOAddr + regCommandIntStatus_w);
 }
 
 
@@ -695,7 +706,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     INF_3C90X.is3c556 = (pci->did == 0x6055);
  
     int i, c;
-    unsigned short eeprom[0x21];
+    unsigned short eeprom[0x100];
     unsigned int cfg;
     unsigned int mopt;
     unsigned int mstat;
@@ -711,15 +722,21 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     }
 
     if (ioaddr == 0)
-          return 0;
-/*
-    adjust_pci_dev(pci);
-*/
+    {
+        outputf("3c90x: Unable to find I/O address");
+        return 0;
+    }
+    
+    /* Power it on */
+    pci_write16(pci->bus, pci->dev, pci->fn, 0xE0,
+    	pci_read16(pci->bus, pci->dev, pci->fn, 0xE0) & ~0x3);
+    
+    outputf("3c90x: Picked I/O address %04x", ioaddr);
     pci_bother_add(pci);
     nic.ioaddr = ioaddr & ~3;
     nic.irqno = 0;
 
-    INF_3C90X.IOAddr = ioaddr & ~3;
+    INF_3C90X.IOAddr = ioaddr;
     INF_3C90X.CurrentWindow = 255;
     switch (a3c90x_internal_ReadEeprom(INF_3C90X.IOAddr, 0x03))
 	{
@@ -745,7 +762,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     /** Load the EEPROM contents **/
     if (INF_3C90X.isBrev)
 	{
-	for(i=0;i<=0x20;i++)
+	for(i=0;i<=/*0x20*/0x7F;i++)
 	    {
 	    eeprom[i] = a3c90x_internal_ReadEeprom(INF_3C90X.IOAddr, i);
 	    }
@@ -774,7 +791,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
 	}
     else
 	{
-	for(i=0;i<=0x17;i++)
+	for(i=0;i<=/*0x17*/0x7F;i++)
 	    {
 	    eeprom[i] = a3c90x_internal_ReadEeprom(INF_3C90X.IOAddr, i);
 	    }
@@ -788,6 +805,14 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
 	   "effects.  See 3c90x.txt for info.");
 	}
 #endif
+    {
+    unsigned int tmp;
+    for (tmp = 0; tmp < 0x10; tmp+= 4)
+    	outputf("EEPROM adr %02x, data %04x %04x %04x %04x",
+    		tmp, eeprom[tmp], eeprom[tmp+1], eeprom[tmp+2], eeprom[tmp+3]);
+    }
+    
+    /* Some type A... */
 
     /** Retrieve the Hardware address and print it on the screen. **/
     INF_3C90X.HWAddr[0] = eeprom[HWADDR_OFFSET + 0]>>8;
@@ -796,7 +821,13 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     INF_3C90X.HWAddr[3] = eeprom[HWADDR_OFFSET + 1]&0xFF;
     INF_3C90X.HWAddr[4] = eeprom[HWADDR_OFFSET + 2]>>8;
     INF_3C90X.HWAddr[5] = eeprom[HWADDR_OFFSET + 2]&0xFF;
-    outputf("MAC Address = %!", INF_3C90X.HWAddr);
+    outputf("MAC Address = %02x:%02x:%02x:%02x:%02x:%02x",
+    	INF_3C90X.HWAddr[0],
+    	INF_3C90X.HWAddr[1],
+    	INF_3C90X.HWAddr[2],
+    	INF_3C90X.HWAddr[3],
+    	INF_3C90X.HWAddr[4],
+    	INF_3C90X.HWAddr[5]);
 
     /** 3C556: Invert MII power **/
     if (INF_3C90X.is3c556) {
@@ -804,7 +835,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
 	a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winAddressing2);
 	tmp = inw(INF_3C90X.IOAddr + regResetOptions_2_w);
 	tmp |= 0x4000;
-	outw(tmp, INF_3C90X.IOAddr + regResetOptions_2_w);
+	_outw(tmp, INF_3C90X.IOAddr + regResetOptions_2_w);
     }
 
     /* Test if the link is good, if not continue */
@@ -817,12 +848,12 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
 
     /** Program the MAC address into the station address registers **/
     a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winAddressing2);
-    outw(htons(eeprom[HWADDR_OFFSET + 0]), INF_3C90X.IOAddr + regStationAddress_2_3w);
-    outw(htons(eeprom[HWADDR_OFFSET + 1]), INF_3C90X.IOAddr + regStationAddress_2_3w+2);
-    outw(htons(eeprom[HWADDR_OFFSET + 2]), INF_3C90X.IOAddr + regStationAddress_2_3w+4);
-    outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+0);
-    outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+2);
-    outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+4);
+    _outw(htons(eeprom[HWADDR_OFFSET + 0]), INF_3C90X.IOAddr + regStationAddress_2_3w);
+    _outw(htons(eeprom[HWADDR_OFFSET + 1]), INF_3C90X.IOAddr + regStationAddress_2_3w+2);
+    _outw(htons(eeprom[HWADDR_OFFSET + 2]), INF_3C90X.IOAddr + regStationAddress_2_3w+4);
+    _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+0);
+    _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+2);
+    _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+4);
 
     /** Fill in our entry in the etherboot arp table **/
 /* XXX ? for lwip? 
@@ -929,7 +960,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     cfg = inl(INF_3C90X.IOAddr + regInternalConfig_3_l);
     cfg &= ~(0xF<<20);
     cfg |= (linktype<<20);
-    outl(cfg, INF_3C90X.IOAddr + regInternalConfig_3_l);
+    _outl(cfg, INF_3C90X.IOAddr + regInternalConfig_3_l);
 
     /** Now that we set the xcvr type, reset the Tx and Rx, re-enable. **/
     a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdTxReset, 0x00);
@@ -937,7 +968,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
 	;
 
     if (!INF_3C90X.isBrev)
-	outb(0x01, INF_3C90X.IOAddr + regTxFreeThresh_b);
+	_outb(0x01, INF_3C90X.IOAddr + regTxFreeThresh_b);
 
     a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdTxEnable, 0);
 
@@ -969,6 +1000,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     /* * Set our exported functions **/
     nic.poll     = a3c90x_poll;
     nic.transmit = a3c90x_transmit;
+    eth_register(&nic);
 
     return 1;
 }

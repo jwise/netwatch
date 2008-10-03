@@ -4,7 +4,7 @@
 
 static void __pci_config(int bus, int slot, int fn, int addr)
 {
-	outl(0xCF8, 0x80000000ULL | (bus << 16) | (slot << 11) | (fn << 8) | addr);
+	outl(0xCF8, 0x80000000ULL | (bus << 16) | (slot << 11) | (fn << 8) | (addr & ~3));
 }
 
 void pci_write32(int bus, int slot, int fn, int addr, uint32_t data)
@@ -34,11 +34,11 @@ uint32_t pci_read32(int bus, int slot, int fn, int addr)
 uint16_t pci_read16(int bus, int slot, int fn, int addr)
 {
 	__pci_config(bus, slot, fn, addr);
-	return inw(0xCFC);
+	return inw(0xCFC + (addr & 2));
 }
 
 uint8_t pci_read8(int bus, int slot, int fn, int addr)
 {
 	__pci_config(bus, slot, fn, addr);
-	return inb(0xCFC);
+	return inb(0xCFC + (addr & 3));
 }

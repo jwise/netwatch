@@ -26,7 +26,7 @@ void pci_dump() {
 	{
 		unsigned char b;
 		b = inb(cts & 0xFFFF);
-		dologf("READ: %08x (%02x)", cts, b);
+		//dologf("READ: %08x (%02x)", cts, b);
 		if ((cts & 0xFFFF) == 0x64)
 			curdev = (b & 0x20) ? 1 : 0;
 		if ((curdev == 0) && ((cts & 0xFFFF) == 0x60) && (b == 0x01))

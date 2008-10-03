@@ -109,7 +109,7 @@ static int _probefn(pci_dev_t *dev, void *d)
 	for (i = 0; i < driver->id_count; i++)
 		if ((dev->vid == driver->ids[i].vid) && (dev->did == driver->ids[i].did))
 		{
-			outputf("Probing PCI device: %s (%s)", driver->ids[i].name ? driver->ids[i].name : driver->name, driver->ids[i].friendlyname ? driver->ids[i].friendlyname : "no friendly name");
+			outputf("Probing PCI device: %s", driver->ids[i].name ? driver->ids[i].name : driver->name);
 			return driver->probe(dev, d);
 		}
 	return 0;
