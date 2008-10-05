@@ -19,7 +19,7 @@ void eth_poll()
 
 	_nic->poll(_nic, 0);
 	
-	if ((c++) % 60)
+	if ((c++) % 30)
 		return;
 	
 	for (i = 0; i < 1024; i++)

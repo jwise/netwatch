@@ -51,7 +51,7 @@
  ** this is the number of times to retry the transmission -- this should
  ** be plenty
  **/
-#define	XMIT_RETRIES	250
+#define	XMIT_RETRIES	1
 
 /*** Register definitions for the 3c905 ***/
 enum Registers
@@ -258,43 +258,29 @@ static struct nic nic;
 #define _outw(v,a) outw((a),(v))
 #define _outb(v,a) outb((a),(v))
 
-/*** a3c90x_internal_IssueCommand: sends a command to the 3c90x card
- ***/
-static int
-a3c90x_internal_IssueCommand(int ioaddr, int cmd, int param)
-    {
-    unsigned int val;
+static int _issue_command(int ioaddr, int cmd, int param)
+{
+	outw(ioaddr + regCommandIntStatus_w, (cmd << 11) | param);
 
-	/** Build the cmd. **/
-	val = cmd;
-	val <<= 11;
-	val |= param;
+	while (inw(ioaddr + regCommandIntStatus_w) & INT_CMDINPROGRESS)
+		;
 
-	/** Send the cmd to the cmd register **/
-	_outw(val, ioaddr + regCommandIntStatus_w);
-
-	/** Wait for the cmd to complete, if necessary **/
-	while (inw(ioaddr + regCommandIntStatus_w) & INT_CMDINPROGRESS);
-
-    return 0;
-    }
+	return 0;
+}
 
 
 /*** a3c90x_internal_SetWindow: selects a register window set.
  ***/
-static int
-a3c90x_internal_SetWindow(int ioaddr, int window)
-    {
+static int _set_window(int ioaddr, int window)
+{
+	if (INF_3C90X.CurrentWindow == window)
+		return 0;
 
-	/** Window already as set? **/
-	if (INF_3C90X.CurrentWindow == window) return 0;
-
-	/** Issue the window command. **/
-	a3c90x_internal_IssueCommand(ioaddr, cmdSelectRegisterWindow, window);
+	_issue_command(ioaddr, cmdSelectRegisterWindow, window);
 	INF_3C90X.CurrentWindow = window;
 
-    return 0;
-    }
+	return 0;
+}
 
 
 /*** a3c90x_internal_ReadEeprom - read data from the serial eeprom.
@@ -305,7 +291,7 @@ a3c90x_internal_ReadEeprom(int ioaddr, int address)
 	unsigned short val;
 
 	/** Select correct window **/
-        a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winEepromBios0);
+        _set_window(INF_3C90X.IOAddr, winEepromBios0);
 
 	/** Make sure the eeprom isn't busy **/
 	do
@@ -345,7 +331,7 @@ static int
 a3c90x_internal_WriteEepromWord(int ioaddr, int address, unsigned short value)
     {
 	/** Select register window **/
-        a3c90x_internal_SetWindow(ioaddr, winEepromBios0);
+        _set_window(ioaddr, winEepromBios0);
 
 	/** Verify Eeprom not busy **/
 	while((1<<15) & inw(ioaddr + regEepromCommand_0_w));
@@ -423,65 +409,57 @@ static void a3c90x_reset(void)
 #ifdef	CFG_3C90X_PRESERVE_XCVR
     int cfg;
     /** Read the current InternalConfig value. **/
-    a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winTxRxOptions3);
+    _set_window(INF_3C90X.IOAddr, winTxRxOptions3);
     cfg = inl(INF_3C90X.IOAddr + regInternalConfig_3_l);
 #endif
 
     /** Send the reset command to the card **/
     outputf("3c90x: issuing RESET");
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdGlobalReset, 0);
-
-    /** wait for reset command to complete **/
-    while (inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_CMDINPROGRESS);
+    _issue_command(INF_3C90X.IOAddr, cmdGlobalReset, 0);
 
     /** global reset command resets station mask, non-B revision cards
      ** require explicit reset of values
      **/
-    a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winAddressing2);
+    _set_window(INF_3C90X.IOAddr, winAddressing2);
     _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+0);
     _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+2);
     _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+4);
 
 #ifdef	CFG_3C90X_PRESERVE_XCVR
     /** Re-set the original InternalConfig value from before reset **/
-    a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winTxRxOptions3);
+    _set_window(INF_3C90X.IOAddr, winTxRxOptions3);
     _outl(cfg, INF_3C90X.IOAddr + regInternalConfig_3_l);
 
     /** enable DC converter for 10-Base-T **/
     if ((cfg&0x0300) == 0x0300)
 	{
-	a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdEnableDcConverter, 0);
+	_issue_command(INF_3C90X.IOAddr, cmdEnableDcConverter, 0);
 	}
 #endif
 
     /** Issue transmit reset, wait for command completion **/
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdTxReset, 0);
-    while (inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_CMDINPROGRESS)
-	;
+    _issue_command(INF_3C90X.IOAddr, cmdTxReset, 0);
     if (! INF_3C90X.isBrev)
 	_outb(0x01, INF_3C90X.IOAddr + regTxFreeThresh_b);
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdTxEnable, 0);
+    _issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
 
     /**
      ** reset of the receiver on B-revision cards re-negotiates the link
      ** takes several seconds (a computer eternity)
      **/
     if (INF_3C90X.isBrev)
-	a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdRxReset, 0x04);
+	_issue_command(INF_3C90X.IOAddr, cmdRxReset, 0x04);
     else
-	a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdRxReset, 0x00);
-    while (inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_CMDINPROGRESS);
-	;
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdRxEnable, 0);
+	_issue_command(INF_3C90X.IOAddr, cmdRxReset, 0x00);
+    while (inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_CMDINPROGRESS)
+       ;
+    _issue_command(INF_3C90X.IOAddr, cmdRxEnable, 0);
 
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr,
-                                 cmdSetInterruptEnable, 0);
+    _issue_command(INF_3C90X.IOAddr, cmdSetInterruptEnable, 0);
     /** enable rxComplete and txComplete **/
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr,
-                                 cmdSetIndicationEnable, 0x0014);
+    _issue_command(INF_3C90X.IOAddr, cmdSetIndicationEnable, 0x0014);
     /** acknowledge any pending status flags **/
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr,
-                                 cmdAcknowledgeInterrupt, 0x661);
+    _issue_command(INF_3C90X.IOAddr, cmdAcknowledgeInterrupt, 0x661);
 
     return;
     }
@@ -498,123 +476,113 @@ static void a3c90x_reset(void)
 static void
 a3c90x_transmit(const char *dest_addr, unsigned int proto,
                 unsigned int size, const char *pkt)
-    {
-
-    struct eth_hdr
+{
+	struct eth_hdr
 	{
-	unsigned char dst_addr[ETH_ALEN];
-	unsigned char src_addr[ETH_ALEN];
-	unsigned short type;
+		unsigned char dst_addr[ETH_ALEN];
+		unsigned char src_addr[ETH_ALEN];
+		unsigned short type;
 	} hdr;
+		
+	unsigned char status;
+	unsigned int i, retries;
 
-    unsigned char status;
-    unsigned i, retries;
-
-    for (retries=0; retries < XMIT_RETRIES ; retries++)
+	for (retries=0; retries < XMIT_RETRIES; retries++)
 	{
-	/** Stall the download engine **/
-	a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdStallCtl, 2);
+		if (retries != 0)
+			outputf("3c90x: retrying packet send (%d)", retries);
+		
+		/** Stall the download engine **/
+		outputf("3c90x: stalling transmit engine");
+		_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 2 /* Stall download */);
 
-	/** Make sure the card is not waiting on us **/
-	inw(INF_3C90X.IOAddr + regCommandIntStatus_w);
-	inw(INF_3C90X.IOAddr + regCommandIntStatus_w);
+		hdr.type = htons(proto);
+		memcpy(hdr.dst_addr, dest_addr, ETH_ALEN);
+		memcpy(hdr.src_addr, INF_3C90X.HWAddr, ETH_ALEN);
 
-	while (inw(INF_3C90X.IOAddr+regCommandIntStatus_w) &
-	       INT_CMDINPROGRESS)
-	    ;
+		/** Setup the DPD (download descriptor) **/
+		INF_3C90X.TransmitDPD.DnNextPtr = 0;
+		/** set notification for transmission completion (bit 15) **/
+		INF_3C90X.TransmitDPD.FrameStartHeader = (size + sizeof(hdr)) | 0x8000;
+		INF_3C90X.TransmitDPD.HdrAddr = virt_to_bus(&hdr);
+		INF_3C90X.TransmitDPD.HdrLength = sizeof(hdr);
+		INF_3C90X.TransmitDPD.DataAddr = virt_to_bus(pkt);
+		INF_3C90X.TransmitDPD.DataLength = size + (1<<31);
 
-	/** Set the ethernet packet type **/
-	hdr.type = htons(proto);
+		/** Send the packet **/
+		outputf("3c90x: pointing card at %08x", virt_to_bus(&(INF_3C90X.TransmitDPD)));
+		outl(INF_3C90X.IOAddr + regDnListPtr_l, virt_to_bus(&(INF_3C90X.TransmitDPD)));
 
-	/** Copy the destination address **/
-	memcpy(hdr.dst_addr, dest_addr, ETH_ALEN);
+		outputf("3c90x: unstalling transmit engine");
+		_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 3 /* Unstall download */);
+		
+		outputf("3c90x: waiting for download pointer");
+		oneshot_start_ms(100);
+		while((inl(INF_3C90X.IOAddr + regDnListPtr_l) != 0) && oneshot_running())
+			;
+		if (!oneshot_running())
+		{
+			outputf("3c90x: Download engine pointer timeout");
+		}
 
-	/** Copy our MAC address **/
-	memcpy(hdr.src_addr, INF_3C90X.HWAddr, ETH_ALEN);
+		outputf("3c90x: waiting for TXCOMPLETE");
+		oneshot_start_ms(10);	/* Give it 10 ms */
+		while (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE) && oneshot_running())
+			;
 
-	/** Setup the DPD (download descriptor) **/
-	INF_3C90X.TransmitDPD.DnNextPtr = 0;
-	/** set notification for transmission completion (bit 15) **/
-	INF_3C90X.TransmitDPD.FrameStartHeader = (size + sizeof(hdr)) | 0x8000;
-	INF_3C90X.TransmitDPD.HdrAddr = virt_to_bus(&hdr);
-	INF_3C90X.TransmitDPD.HdrLength = sizeof(hdr);
-	INF_3C90X.TransmitDPD.DataAddr = virt_to_bus(pkt);
-	INF_3C90X.TransmitDPD.DataLength = size + (1<<31);
+		if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE))
+		{
+			outputf("3c90x: tx timeout? stat %02x", inb(INF_3C90X.IOAddr + regTxStatus_b));
+			_issue_command(INF_3C90X.IOAddr, cmdTxReset, 0);
+    if (! INF_3C90X.isBrev)
+	_outb(0x01, INF_3C90X.IOAddr + regTxFreeThresh_b);
+    _issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
+    _issue_command(INF_3C90X.IOAddr, cmdSetInterruptEnable, 0);
+    _issue_command(INF_3C90X.IOAddr, cmdSetIndicationEnable, 0x0014);
+    _issue_command(INF_3C90X.IOAddr, cmdAcknowledgeInterrupt, 0x661);
+			continue;
+		}
+		status = inb(INF_3C90X.IOAddr + regTxStatus_b);
+		outb(INF_3C90X.IOAddr + regTxStatus_b, 0x00);
+		
+		_issue_command(INF_3C90X.IOAddr, cmdAcknowledgeInterrupt, INT_TXCOMPLETE);
 
-	/** Send the packet **/
-	_outl(virt_to_bus(&(INF_3C90X.TransmitDPD)),
-	     INF_3C90X.IOAddr + regDnListPtr_l);
+		/** successful completion (sans "interrupt Requested" bit) **/
+		if ((status & 0xbf) == 0x80)
+			return;
 
-	/** End Stall and Wait for upload to complete. **/
-	a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdStallCtl, 3);
-	while(inl(INF_3C90X.IOAddr + regDnListPtr_l) != 0)
-	    ;
-
-	/** Wait for NIC Transmit to Complete **/
-	oneshot_start_ms(10);	/* Give it 10 ms */
-	while (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w)&0x0004) &&
-		oneshot_running())
-		;
-
-	if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w)&0x0004))
-	    {
-	    outputf("3C90X: Tx Timeout");
-	    continue;
-	    }
-
-	status = inb(INF_3C90X.IOAddr + regTxStatus_b);
-
-	/** acknowledge transmit interrupt by writing status **/
-	_outb(0x00, INF_3C90X.IOAddr + regTxStatus_b);
-
-	/** successful completion (sans "interrupt Requested" bit) **/
-	if ((status & 0xbf) == 0x80)
-	    return;
-
-	   outputf("3C90X: Status (%hhX)", status);
-	/** check error codes **/
-	if (status & 0x02)
-	    {
-	    outputf("3C90X: Tx Reclaim Error (%hhX)", status);
-	    a3c90x_reset();
-	    }
-	else if (status & 0x04)
-	    {
-	    outputf("3C90X: Tx Status Overflow (%hhX)", status);
-	    for (i=0; i<32; i++)
-		_outb(0x00, INF_3C90X.IOAddr + regTxStatus_b);
-	    /** must re-enable after max collisions before re-issuing tx **/
-	    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdTxEnable, 0);
-	    }
-	else if (status & 0x08)
-	    {
-	    outputf("3C90X: Tx Max Collisions (%hhX)", status);
-	    /** must re-enable after max collisions before re-issuing tx **/
-	    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdTxEnable, 0);
-	    }
-	else if (status & 0x10)
-	    {
-	    outputf("3C90X: Tx Underrun (%hhX)", status);
-	    a3c90x_reset();
-	    }
-	else if (status & 0x20)
-	    {
-	    outputf("3C90X: Tx Jabber (%hhX)", status);
-	    a3c90x_reset();
-	    }
-	else if ((status & 0x80) != 0x80)
-	    {
-	    outputf("3C90X: Internal Error - Incomplete Transmission (%hhX)",
-	           status);
-	    a3c90x_reset();
-	    }
+		outputf("3c90x: Status (%hhX)", status);
+		/** check error codes **/
+		if (status & 0x02)
+		{
+			outputf("3c90x: Tx Reclaim Error (%hhX)", status);
+			a3c90x_reset();
+		} else if (status & 0x04) {
+			outputf("3c90x: Tx Status Overflow (%hhX)", status);
+			for (i=0; i<32; i++)
+				_outb(0x00, INF_3C90X.IOAddr + regTxStatus_b);
+			/** must re-enable after max collisions before re-issuing tx **/
+			_issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
+		} else if (status & 0x08) {
+			outputf("3c90x: Tx Max Collisions (%hhX)", status);
+			/** must re-enable after max collisions before re-issuing tx **/
+			_issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
+		} else if (status & 0x10) {
+			outputf("3c90x: Tx Underrun (%hhX)", status);
+			a3c90x_reset();
+		} else if (status & 0x20) {
+			outputf("3c90x: Tx Jabber (%hhX)", status);
+			a3c90x_reset();
+		} else if ((status & 0x80) != 0x80) {
+			outputf("3c90x: Internal Error - Incomplete Transmission (%hhX)", status);
+			a3c90x_reset();
+		}
 	}
 
-    /** failed after RETRY attempts **/
-    outputf("Failed to send after %d retries", retries);
-    return;
-
-    }
+	/** failed after RETRY attempts **/
+	outputf("3c90x: Failed to send after %d retries", retries);
+	return;
+}
 
 
 
@@ -732,7 +700,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     	pci_read16(pci->bus, pci->dev, pci->fn, 0xE0) & ~0x3);
     
     outputf("3c90x: Picked I/O address %04x", ioaddr);
-    pci_bother_add(pci);
+//    pci_bother_add(pci);
     nic.ioaddr = ioaddr & ~3;
     nic.irqno = 0;
 
@@ -805,14 +773,6 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
 	   "effects.  See 3c90x.txt for info.");
 	}
 #endif
-    {
-    unsigned int tmp;
-    for (tmp = 0; tmp < 0x10; tmp+= 4)
-    	outputf("EEPROM adr %02x, data %04x %04x %04x %04x",
-    		tmp, eeprom[tmp], eeprom[tmp+1], eeprom[tmp+2], eeprom[tmp+3]);
-    }
-    
-    /* Some type A... */
 
     /** Retrieve the Hardware address and print it on the screen. **/
     INF_3C90X.HWAddr[0] = eeprom[HWADDR_OFFSET + 0]>>8;
@@ -832,14 +792,14 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     /** 3C556: Invert MII power **/
     if (INF_3C90X.is3c556) {
 	unsigned int tmp;
-	a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winAddressing2);
+	_set_window(INF_3C90X.IOAddr, winAddressing2);
 	tmp = inw(INF_3C90X.IOAddr + regResetOptions_2_w);
 	tmp |= 0x4000;
 	_outw(tmp, INF_3C90X.IOAddr + regResetOptions_2_w);
     }
 
     /* Test if the link is good, if not continue */
-    a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winDiagnostics4);
+    _set_window(INF_3C90X.IOAddr, winDiagnostics4);
     mstat = inw(INF_3C90X.IOAddr + regMediaStatus_4_w);
     if((mstat & (1<<11)) == 0) {
 	outputf("Valid link not established");
@@ -847,7 +807,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     }
 
     /** Program the MAC address into the station address registers **/
-    a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winAddressing2);
+    _set_window(INF_3C90X.IOAddr, winAddressing2);
     _outw(htons(eeprom[HWADDR_OFFSET + 0]), INF_3C90X.IOAddr + regStationAddress_2_3w);
     _outw(htons(eeprom[HWADDR_OFFSET + 1]), INF_3C90X.IOAddr + regStationAddress_2_3w+2);
     _outw(htons(eeprom[HWADDR_OFFSET + 2]), INF_3C90X.IOAddr + regStationAddress_2_3w+4);
@@ -867,7 +827,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
      ** Uses Media Option command on B revision, Reset Option on non-B
      ** revision cards -- same register address
      **/
-    a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winTxRxOptions3);
+    _set_window(INF_3C90X.IOAddr, winTxRxOptions3);
     mopt = inw(INF_3C90X.IOAddr + regResetMediaOptions_3_w);
 
     /** mask out VCO bit that is defined as 10baseFL bit on B-rev cards **/
@@ -952,50 +912,43 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     /** enable DC converter for 10-Base-T **/
     if (linktype == 0x0003)
 	{
-	a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdEnableDcConverter, 0);
+	_issue_command(INF_3C90X.IOAddr, cmdEnableDcConverter, 0);
 	}
 
     /** Set the link to the type we just determined. **/
-    a3c90x_internal_SetWindow(INF_3C90X.IOAddr, winTxRxOptions3);
+    _set_window(INF_3C90X.IOAddr, winTxRxOptions3);
     cfg = inl(INF_3C90X.IOAddr + regInternalConfig_3_l);
     cfg &= ~(0xF<<20);
     cfg |= (linktype<<20);
     _outl(cfg, INF_3C90X.IOAddr + regInternalConfig_3_l);
 
     /** Now that we set the xcvr type, reset the Tx and Rx, re-enable. **/
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdTxReset, 0x00);
-    while (inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_CMDINPROGRESS)
-	;
-
+    _issue_command(INF_3C90X.IOAddr, cmdTxReset, 0);
     if (!INF_3C90X.isBrev)
 	_outb(0x01, INF_3C90X.IOAddr + regTxFreeThresh_b);
 
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdTxEnable, 0);
+    _issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
 
     /**
      ** reset of the receiver on B-revision cards re-negotiates the link
      ** takes several seconds (a computer eternity)
      **/
     if (INF_3C90X.isBrev)
-	a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdRxReset, 0x04);
+	_issue_command(INF_3C90X.IOAddr, cmdRxReset, 0x04);
     else
-	a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdRxReset, 0x00);
-    while (inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_CMDINPROGRESS)
-	;
+	_issue_command(INF_3C90X.IOAddr, cmdRxReset, 0x00);
 
     /** Set the RX filter = receive only individual pkts & multicast & bcast. **/
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdSetRxFilter, 0x01 + 0x02 + 0x04);
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdRxEnable, 0);
+    _issue_command(INF_3C90X.IOAddr, cmdSetRxFilter, 0x01 + 0x02 + 0x04);
+    _issue_command(INF_3C90X.IOAddr, cmdRxEnable, 0);
 
 
     /**
      ** set Indication and Interrupt flags , acknowledge any IRQ's
      **/
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdSetInterruptEnable, 0);
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr,
-                                 cmdSetIndicationEnable, 0x0014);
-    a3c90x_internal_IssueCommand(INF_3C90X.IOAddr,
-                                 cmdAcknowledgeInterrupt, 0x661);
+    _issue_command(INF_3C90X.IOAddr, cmdSetInterruptEnable, 0);
+    _issue_command(INF_3C90X.IOAddr, cmdSetIndicationEnable, 0x0014);
+    _issue_command(INF_3C90X.IOAddr, cmdAcknowledgeInterrupt, 0x661);
 
     /* * Set our exported functions **/
     nic.poll     = a3c90x_poll;
