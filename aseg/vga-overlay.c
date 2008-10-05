@@ -75,6 +75,7 @@ void dolog(const char *s)
 {
 	strcpy(logents[prodptr], s);
 	prodptr = (prodptr + 1) % LOGLEN;
+	outlog();
 }
 void (*output)(const char *s) = dolog;
 
@@ -86,6 +87,7 @@ void dologf(const char *fmt, ...)
 	vsnprintf(logents[prodptr], 40, fmt, va);
 	va_end(va);
 	prodptr = (prodptr + 1) % LOGLEN;
+	outlog();
 }
 void (*outputf)(const char *s, ...) = dologf;
 
