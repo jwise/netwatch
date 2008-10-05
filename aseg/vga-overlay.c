@@ -10,6 +10,7 @@
 
 static char logents[LOGLEN][41] = {{0}};
 static int prodptr = 0;
+static int flush_imm = 0;
 
 #define VRAM_BASE		0xA0000UL
 #define TEXT_CONSOLE_OFFSET	0x18000UL 
@@ -17,6 +18,11 @@ static int prodptr = 0;
 #define TEXT_CONSOLE_BASE	(VRAM_BASE + TEXT_CONSOLE_OFFSET)
 
 #define COLOR			0x1F
+
+void vga_flush_imm(int imm)
+{
+	flush_imm = imm;
+}
 
 static unsigned char vga_read(unsigned char idx)
 {
@@ -75,7 +81,8 @@ void dolog(const char *s)
 {
 	strcpy(logents[prodptr], s);
 	prodptr = (prodptr + 1) % LOGLEN;
-	outlog();
+	if (flush_imm)
+		outlog();
 }
 void (*output)(const char *s) = dolog;
 
@@ -87,7 +94,8 @@ void dologf(const char *fmt, ...)
 	vsnprintf(logents[prodptr], 40, fmt, va);
 	va_end(va);
 	prodptr = (prodptr + 1) % LOGLEN;
-	outlog();
+	if (flush_imm)
+		outlog();
 }
 void (*outputf)(const char *s, ...) = dologf;
 

@@ -23,6 +23,8 @@ void __firstrun_start() {
 	for (bp = (void *)&_bss; (void *)bp < (void *)&_bssend; bp++)
 		*bp = 0;
 	
+	vga_flush_imm(0);
+	
 	outputf("NetWatch running");
 
 	/* Try really hard to shut up USB_LEGKEY. */
@@ -46,6 +48,8 @@ void __firstrun_start() {
 	smi_enable_event(SMI_EVENT_GBL_RLS);
 
 	smi_enable();
+	
+	vga_flush_imm(1);
 	
 	smram_restore_state(smram);
 }
