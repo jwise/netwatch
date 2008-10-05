@@ -428,7 +428,7 @@ static void a3c90x_reset(void)
 #endif
 
     /** Send the reset command to the card **/
-    outputf("Issuing RESET:");
+    outputf("3c90x: issuing RESET");
     a3c90x_internal_IssueCommand(INF_3C90X.IOAddr, cmdGlobalReset, 0);
 
     /** wait for reset command to complete **/
