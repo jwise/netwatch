@@ -503,7 +503,7 @@ a3c90x_transmit(const char *dest_addr, unsigned int proto,
 		/** Setup the DPD (download descriptor) **/
 		INF_3C90X.TransmitDPD.DnNextPtr = 0;
 		/** set notification for transmission completion (bit 15) **/
-		INF_3C90X.TransmitDPD.FrameStartHeader = (size + sizeof(hdr)) | 0x8000;
+		INF_3C90X.TransmitDPD.FrameStartHeader = (size + sizeof(hdr)) /*| 0x8000*/;
 		INF_3C90X.TransmitDPD.HdrAddr = virt_to_bus(&hdr);
 		INF_3C90X.TransmitDPD.HdrLength = sizeof(hdr);
 		INF_3C90X.TransmitDPD.DataAddr = virt_to_bus(pkt);
@@ -532,21 +532,13 @@ a3c90x_transmit(const char *dest_addr, unsigned int proto,
 
 		if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE))
 		{
-			outputf("3c90x: tx timeout? stat %02x", inb(INF_3C90X.IOAddr + regTxStatus_b));
-			_issue_command(INF_3C90X.IOAddr, cmdTxReset, 0);
-    if (! INF_3C90X.isBrev)
-	_outb(0x01, INF_3C90X.IOAddr + regTxFreeThresh_b);
-    _issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
-    _issue_command(INF_3C90X.IOAddr, cmdSetInterruptEnable, 0);
-    _issue_command(INF_3C90X.IOAddr, cmdSetIndicationEnable, 0x0014);
-    _issue_command(INF_3C90X.IOAddr, cmdAcknowledgeInterrupt, 0x661);
+			outputf("3c90x: tx timeout? txstat %02x", inb(INF_3C90X.IOAddr + regTxStatus_b));
+			outputf("3c90x: Gen sts %04x", inw(INF_3C90X.IOAddr + regCommandIntStatus_w));
 			continue;
 		}
 		status = inb(INF_3C90X.IOAddr + regTxStatus_b);
 		outb(INF_3C90X.IOAddr + regTxStatus_b, 0x00);
 		
-		_issue_command(INF_3C90X.IOAddr, cmdAcknowledgeInterrupt, INT_TXCOMPLETE);
-
 		/** successful completion (sans "interrupt Requested" bit) **/
 		if ((status & 0xbf) == 0x80)
 			return;
@@ -700,7 +692,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     	pci_read16(pci->bus, pci->dev, pci->fn, 0xE0) & ~0x3);
     
     outputf("3c90x: Picked I/O address %04x", ioaddr);
-//    pci_bother_add(pci);
+    pci_bother_add(pci);
     nic.ioaddr = ioaddr & ~3;
     nic.irqno = 0;
 
