@@ -12,6 +12,15 @@ extern struct pci_driver a3c90x_driver;
 
 static char test[1024] = {0};
 
+static char packet[4096] = {0};
+
+typedef struct packet_t {
+	char from[6];
+	char to[6];
+	unsigned short ethertype;
+	char data[];
+} packet_t;
+
 static unsigned char vga_read(unsigned char idx)
 {
 	outb(CRTC_IDX_REG, idx);
@@ -36,7 +45,17 @@ void eth_poll()
 	if (!_nic)
 		return;
 
-	_nic->poll(_nic, 0);
+	if (_nic->poll(_nic, 0)) {
+		_nic->packet = packet;
+		_nic->poll(_nic, 1);
+
+		packet_t * p = (packet_t *) packet;
+
+		outputf("NIC: Packet: %d 0x%x", _nic->packetlen, p->ethertype);
+		if (p->ethertype == 0x3813) {
+			outputf("NIC: Command: 0x%x", *((uint16_t *)p->data));
+		}
+	}
 	smram_tseg_set_state(SMRAM_TSEG_OPEN);
 	old_state = smram_save_state();
 	

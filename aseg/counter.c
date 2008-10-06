@@ -7,6 +7,7 @@
 #include "../net/net.h"
 #include "vga-overlay.h"
 #include "packet.h"
+#include "keyboard.h"
 
 unsigned int counter = 0;
 unsigned long pcisave;
@@ -29,8 +30,21 @@ void pci_dump() {
 		//dologf("READ: %08x (%02x)", cts, b);
 		if ((cts & 0xFFFF) == 0x64)
 			curdev = (b & 0x20) ? 1 : 0;
-		if ((curdev == 0) && ((cts & 0xFFFF) == 0x60) && (b == 0x01))
-			outb(0xCF9, 0x4);
+
+		if ((curdev == 0) && ((cts & 0xFFFF) == 0x60))
+		{
+			/*  This is a keyboard read. */
+			if (b == 0x01) {
+				/* Reset. */
+				outb(0xCF9, 0x4);
+				return;
+			}
+
+			if (kbd_get_injected_scancode()) {
+				b = kbd_get_injected_scancode();
+			}
+		}
+
 		*(unsigned char*)0xAFFD0 /* EAX */ = b;
 		break;
 	}
@@ -86,6 +100,8 @@ void gbl_rls_handler(smi_event_t ev)
 	if (packet->type == 42) {
 		dump_log((char *)packet->data);
 		*(unsigned long*)0xAFFD4 = 42;
+	} else if (packet->type == 0xAA) {
+		kbd_inject_key('A');
 	} else {
 		*(unsigned long*)0xAFFD4 = 0x2BADD00D;
 	}
