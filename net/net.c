@@ -33,9 +33,7 @@ void eth_poll()
 		case 4: test[i] = 'L'; break;
 		}
 	}
-	outputf("eth_poll: Attempting to tx");
 	_nic->transmit("\x00\x03\x93\x87\x84\x8C", 0x1337, 1024, test);
-	outputf("eth_poll: tx complete");
 }
 
 int eth_register(struct nic *nic)
@@ -48,6 +46,7 @@ int eth_register(struct nic *nic)
 
 void eth_init()
 {
-	if (pci_probe_driver(a3c90x_driver))
-		outputf("found 3c90x, hopefully!");
+	/* Required for DMA to work. :( */
+	smram_tseg_set_state(SMRAM_TSEG_OPEN);
+	pci_probe_driver(a3c90x_driver);
 }

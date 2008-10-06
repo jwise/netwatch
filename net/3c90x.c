@@ -51,7 +51,7 @@
  ** this is the number of times to retry the transmission -- this should
  ** be plenty
  **/
-#define	XMIT_RETRIES	1
+#define	XMIT_RETRIES	5
 
 /*** Register definitions for the 3c905 ***/
 enum Registers
@@ -492,8 +492,6 @@ a3c90x_transmit(const char *dest_addr, unsigned int proto,
 		if (retries != 0)
 			outputf("3c90x: retrying packet send (%d)", retries);
 		
-		/** Stall the download engine **/
-		outputf("3c90x: stalling transmit engine");
 		_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 2 /* Stall download */);
 
 		hdr.type = htons(proto);
@@ -503,29 +501,22 @@ a3c90x_transmit(const char *dest_addr, unsigned int proto,
 		/** Setup the DPD (download descriptor) **/
 		INF_3C90X.TransmitDPD.DnNextPtr = 0;
 		/** set notification for transmission completion (bit 15) **/
-		INF_3C90X.TransmitDPD.FrameStartHeader = (size + sizeof(hdr)) /*| 0x8000*/;
+		INF_3C90X.TransmitDPD.FrameStartHeader = (size + sizeof(hdr)) | 0x8000;
 		INF_3C90X.TransmitDPD.HdrAddr = virt_to_bus(&hdr);
 		INF_3C90X.TransmitDPD.HdrLength = sizeof(hdr);
 		INF_3C90X.TransmitDPD.DataAddr = virt_to_bus(pkt);
 		INF_3C90X.TransmitDPD.DataLength = size + (1<<31);
 
 		/** Send the packet **/
-		outputf("3c90x: pointing card at %08x", virt_to_bus(&(INF_3C90X.TransmitDPD)));
 		outl(INF_3C90X.IOAddr + regDnListPtr_l, virt_to_bus(&(INF_3C90X.TransmitDPD)));
-
-		outputf("3c90x: unstalling transmit engine");
 		_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 3 /* Unstall download */);
 		
-		outputf("3c90x: waiting for download pointer");
 		oneshot_start_ms(100);
 		while((inl(INF_3C90X.IOAddr + regDnListPtr_l) != 0) && oneshot_running())
 			;
 		if (!oneshot_running())
-		{
 			outputf("3c90x: Download engine pointer timeout");
-		}
 
-		outputf("3c90x: waiting for TXCOMPLETE");
 		oneshot_start_ms(10);	/* Give it 10 ms */
 		while (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE) && oneshot_running())
 			;
