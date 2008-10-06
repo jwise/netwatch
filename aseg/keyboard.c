@@ -101,6 +101,10 @@ static const char scancodes2[][8] = {
 	['>'] = "\x12\x49\xf0\x49\xf0\x12",
 	['/'] = "\x4a\xf0\x4a",
 	['?'] = "\x12\x4a\xf0\x4a\xf0\x12",
+	['\n'] = "\x5a\xf0\x5a",
+	['\t'] = "\x0d\xf0\x0d",
+	['\b'] = "\x66\xf0\x66",
+	[' '] = "\x29\xf0\x29"
 };
 
 const unsigned char convert_table[] = {
