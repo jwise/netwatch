@@ -22,10 +22,8 @@ static void cause_kbd_irq()
 	while (inb(0x64) & 0x1)
 		inb(0x60);
 	outb(0x60, 0xee);	/* Cause an IRQ. */
-	while (!(inb(0x64) & 0x1))
+	while (inb(0x60) != 0xEE)
 		;
-	while (inb(0x64) & 0x1)
-		inb(0x60);
 }
 
 void pci_dump() {
@@ -62,7 +60,8 @@ void pci_dump() {
 			{
 				b = kbd_get_injected_scancode();
 				lastctr = counter;
-				inb(0x60);
+				while (inb(0x64) & 0x1)
+					inb(0x60);
 			} else
 				b = inb(0x60);
 			if ((curdev == 0) && (b == 0x01)) {	/* Escape */

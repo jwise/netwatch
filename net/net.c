@@ -83,6 +83,13 @@ void eth_poll()
 	
 //	if ((c++) % 2)
 //		return;
+
+	if (((base + 80*25*2)%0x8000) < base)
+	{
+		if ((pos > ((base + 80*25*2)%0x8000)) && (pos < base))
+			pos = base;
+	} else if ((pos > base + 80*25*2) || (pos < base))
+		pos = base;
 	
 	test[0] = pos >> 8;
 	test[1] = pos & 0xFF;
