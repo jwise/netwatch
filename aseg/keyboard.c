@@ -4,7 +4,7 @@
 static unsigned char kbd_inj_buffer[128];
 static int kbd_inj_start = 0;
 static int kbd_inj_end = 0;
-int kbd_mode = 2;
+int kbd_mode = 1;
 
 static const char scancodes2[][8] = {
 	['a'] = "\x1c\xf0\x1c",
