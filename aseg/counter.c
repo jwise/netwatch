@@ -16,6 +16,7 @@ unsigned char vgasave;
 void pci_dump() {
 	unsigned long cts;
 	static int curdev = 0;	/* 0 if kbd, 1 if mouse */
+	static int takeover = 0;
 		
 	cts = inl(0x84C);
 	
@@ -26,23 +27,35 @@ void pci_dump() {
 	case 0x20000:
 	{
 		unsigned char b;
-		b = inb(cts & 0xFFFF);
-		//dologf("READ: %08x (%02x)", cts, b);
-		if ((cts & 0xFFFF) == 0x64)
-			curdev = (b & 0x20) ? 1 : 0;
-
-		if ((curdev == 0) && ((cts & 0xFFFF) == 0x60))
+		
+		switch (cts & 0xFFFF)
 		{
-			/*  This is a keyboard read. */
-			if (b == 0x01) {
-				/* Reset. */
-				outb(0xCF9, 0x4);
+		case 0x64:
+			/* Read the real hardware and mask in our OBF if need be. */
+			b = inb(0x64);
+			if (kbd_has_injected_scancode())
+			{
+				takeover = 1;
+				b |= 0x01;
+				b &= ~0x20;	/* no mouse for you! */
+				curdev = 0;
+			} else 
+				curdev = (b & 0x20) ? 1 : 0;
+			*(unsigned char*)0xAFFD0 /* EAX */ = b;
+			break;
+		case 0x60:
+			if (takeover)
+			{
+				b = kbd_get_injected_scancode();
+				takeover = 0;
+			} else
+				b = inb(0x60);
+			if ((curdev == 0) && (b == 0x01)) {	/* Escape */
+				outb(0xCF9, 0x4);	/* Reboot */
 				return;
 			}
-
-			if (kbd_get_injected_scancode()) {
-				b = kbd_get_injected_scancode();
-			}
+			*(unsigned char*)0xAFFD0 /* EAX */ = b;
+			break;
 		}
 
 		*(unsigned char*)0xAFFD0 /* EAX */ = b;
