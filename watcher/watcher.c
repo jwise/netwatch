@@ -73,8 +73,6 @@ void out(char *buf, unsigned short start)
       last = col;
       if (c == 0)
       	c = ' ';
-      if (!isprint(c))
-        c = 'X';
       printf("%c", c);
       fflush(stdout);
     }
@@ -120,6 +118,21 @@ void send_text(char *d, int len)
 		perror("sendto");
 }
 
+void send_reboot() {
+	frame f;
+	struct sockaddr_ll addr;
+
+	memcpy(f.header, "\x00\xb0\xd0\x97\xbc\xac\x00\x03\x93\x87\x84\x8C\x13\x38", 14);
+	f.datalen = 0;
+	f.cmd = 0xFE;
+	addr.sll_family = AF_PACKET;
+	addr.sll_ifindex = 2;
+	addr.sll_halen = 0;
+
+ 	if (sendto(sendsock, &f, sizeof(frame), 0, (struct sockaddr *)&addr, sizeof(addr)) < sizeof(frame))
+		perror("sendto");
+}
+
 void handler (u_char * user, const struct pcap_pkthdr *h, const u_char *bytes)
 {
 	netwatch_frame * f = (netwatch_frame *) bytes;
@@ -148,6 +161,25 @@ void handler (u_char * user, const struct pcap_pkthdr *h, const u_char *bytes)
 			pcap_breakloop(pcap);
 		if (c == '\r') c = '\n';
 		if (c == 127) c = '\b';
+		if (c == 0x1B)
+		{
+			/* Escape */
+			c = getchar();
+			if (c == '[')
+			{
+				c = getchar();
+				if (c == 'A')
+					c = 0x82;
+				if (c == 'B')
+					c = 0x83;
+				if (c == 'D')
+					c = 0x84;
+				if (c == 'C')
+					c = 0x85;
+				if (c == '4')
+					send_reboot();
+			}
+		}
 
 		char ch = c;
 		send_text(&ch, 1);
