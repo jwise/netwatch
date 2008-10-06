@@ -122,15 +122,18 @@ const unsigned char convert_table[] = {
 	0x00, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff
 };
 
-unsigned char sc_convert_1(unsigned char in) {
+unsigned char sc_convert_1(unsigned char in)
+{
 	static int shifted = 0;
 
-	if (shifted) {
+	if (shifted)
+	{
 		shifted = 0;
 		return convert_table[in] | 0x80;
 	}
 
-	if (in == 0xF0) {
+	if (in == 0xF0)
+	{
 		shifted = 1;
 		return 0;
 	} else {
@@ -138,17 +141,20 @@ unsigned char sc_convert_1(unsigned char in) {
 	} 
 }
 
-void kbd_inject_scancode (unsigned char sc) {
+void kbd_inject_scancode (unsigned char sc)
+{
 	outputf("Buffering %02x", sc);
 	kbd_inj_buffer[kbd_inj_end] = sc;
 	kbd_inj_end += 1;
 	kbd_inj_end %= sizeof(kbd_inj_buffer);
 }
 
-void kbd_inject_key(unsigned char k) {
+void kbd_inject_key(unsigned char k)
+{
+	const char * c;
 
 	if (kbd_mode == 1) {
-		const char * c = scancodes2[k];
+		c = scancodes2[k];
 		if (!c) return;
 		while (*c) {
 			char cconv = sc_convert_1(*c);
@@ -156,7 +162,7 @@ void kbd_inject_key(unsigned char k) {
 			c++;
 		}
 	} else {
-		const char * c = scancodes2[k];
+		c = scancodes2[k];
 		if (!c) return;
 		while (*c) {
 			kbd_inject_scancode(*c);
@@ -169,7 +175,8 @@ unsigned char kbd_get_injected_scancode()
 {
 	unsigned char b;
 
-	if (kbd_inj_end != kbd_inj_start) {
+	if (kbd_inj_end != kbd_inj_start)
+	{
 		b = kbd_inj_buffer[kbd_inj_start];
 		kbd_inj_start += 1;
 		kbd_inj_start %= sizeof(kbd_inj_buffer);
@@ -177,6 +184,16 @@ unsigned char kbd_get_injected_scancode()
 		return b;
 	} else {
 		outputf("Not injecting");
+		return 0;
+	}
+}
+
+int kbd_has_injected_scancode()
+{
+	if (kbd_inj_end != kbd_inj_start)
+	{
+		return 1;
+	} else {
 		return 0;
 	}
 }
