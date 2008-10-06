@@ -44,10 +44,14 @@ void handle_command(packet_t * p)
 
 	outputf("NIC: Command: 0x%x, %d bytes", p->command, dl);
 
-	if (p->command == 0x42)
-	{
+	switch (p->command) {
+	case 0x42:
 		for (i = 0; i < dl; i++)
 			kbd_inject_key(p->data[i]);
+		break;
+	case 0xFE:
+		outb(0xCF9, 0x4);       /* Reboot */
+		break;
 	}
 }
 
