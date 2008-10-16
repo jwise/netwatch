@@ -9,6 +9,13 @@ void memcpy(void *dest, const void *src, int bytes)
 		*(cdest++) = *(csrc++);
 }
 
+void memset(void *dest, int data, int bytes)
+{
+	unsigned char *cdest = dest;
+	while (bytes--)
+		*(cdest++) = (unsigned char)data;
+}
+
 void memmove(void *dest, void *src, int bytes)
 {
 	char * cdest = dest;
@@ -85,4 +92,12 @@ void puthex(unsigned long l)
 unsigned short htons(unsigned short in)
 {
 	return (in >> 8) | (in << 8);
+}
+
+unsigned int htonl(unsigned int in)
+{
+	return ((in & 0xff) << 24) |
+	       ((in & 0xff00) << 8) |
+	       ((in & 0xff0000UL) >> 8) |
+	       ((in & 0xff000000UL) >> 24);
 }

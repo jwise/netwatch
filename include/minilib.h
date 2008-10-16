@@ -4,6 +4,7 @@
 #include <stdarg.h>
 
 extern void memcpy(void *dest, const void *src, int bytes);
+extern void memset(void *dest, int data, int bytes);
 extern void memmove(void *dest, void *src, int bytes);
 extern int memcmp(const char *a2, const char *a1, int bytes);
 extern int strcmp(const char *a2, const char *a1);
@@ -17,5 +18,6 @@ extern int vsnprintf(char *s, int size, const char *fmt, va_list args);
 extern int sprintf(char *s, const char *fmt, ...);
 extern int snprintf(char *s, int size, const char *fmt, ...);
 extern unsigned short htons(unsigned short in);
+extern unsigned int htonl(unsigned int in);
 
 #endif
