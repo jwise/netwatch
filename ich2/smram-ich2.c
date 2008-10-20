@@ -2,8 +2,6 @@
 #include <pci.h>
 #include <smram.h>
 
-#ifndef __RAW__
-
 static unsigned long memsz[] = {
 	0,			// 0
 	32*1024*1024,		// 1
@@ -22,6 +20,44 @@ static unsigned long memsz[] = {
 	256*1024*1024,		// E
 	512*1024*1024		// F
 };
+
+unsigned int smram_tseg_length(void) {
+	unsigned char smramc;
+	int usmm;
+
+	smramc = pci_read8(0, 0, 0, SMRAMC);
+
+	usmm = (smramc >> 4) & 0x3;
+
+	switch (usmm)
+	{
+	case 0:
+		return 0;
+	case 1:
+		return 0;
+	case 2:
+		return 512 * 1024;
+	case 3:
+		return 1024 * 1024;
+	}
+	return 0;
+}
+	
+void * smram_tseg_start(void) {
+	unsigned char drp, drp2;
+	unsigned int tom = 0;
+
+	drp = pci_read8(0, 0, 0, DRP);
+	drp2 = pci_read8(0, 0, 0, DRP2);
+
+	tom += memsz[drp & 0xF];
+	tom += memsz[drp >> 4];
+	tom += memsz[drp2 & 0xF];
+
+	return (void *)(tom - smram_tseg_length());
+}
+
+#ifndef __RAW__
 
 void smram_aseg_dump(void) {
 
