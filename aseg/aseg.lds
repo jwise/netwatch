@@ -1,5 +1,6 @@
 OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
 OUTPUT_ARCH(i386)
+
 SECTIONS
 {
 	. = 0xA8000;
@@ -8,9 +9,11 @@ SECTIONS
 		aseg.o
 		LONG(_stacktop);
 		LONG(smi_entry);
-		*(.text);
 		*(.data);
 		*(.rodata);
+
+		. = 0x8000;
+		*(.text);
 	}
 
 	. = 0x1FF80000;
