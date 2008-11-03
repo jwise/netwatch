@@ -93,6 +93,7 @@ void pci_dump() {
 		dolog("Unhandled PCI cycle");
 	}
 	
+	outl(0x840, 0x0);
 	outl(0x844, 0x1000);
 	outl(0x848, 0x1000);
 }

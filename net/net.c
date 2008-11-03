@@ -5,6 +5,7 @@
 #include <pci-bother.h>
 #include <output.h>
 #include <minilib.h>
+#include <lwip/init.h>
 #include "net.h"
 #include "../aseg/keyboard.h"
 
@@ -124,4 +125,5 @@ void eth_init()
 	/* Required for DMA to work. :( */
 	smram_tseg_set_state(SMRAM_TSEG_OPEN);
 	pci_probe_driver(a3c90x_driver);
+	lwip_init();
 }
