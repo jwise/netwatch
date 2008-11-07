@@ -11,6 +11,7 @@
 #include "pagetable.h"
 
 void set_cr0(unsigned int);
+void ps_switch_stack (void (*call)(), int stack);
 
 extern int entry_initialized;
 extern int _bss, _bssend, _end;
@@ -32,19 +33,19 @@ void smi_entry();
 
 #define MAP_FLAGS	(PTE_PRESENT | PTE_READ_WRITE)
 
-void * pt_setup(int smbase) {
+void * pt_setup(int smbase, int tseg_start, int tseg_size) {
 	int i;
 	outb(0x80, 0x51);
 
 	/* The page directory and page table live at SMBASE and SMBASE + 0x1000,
 	 * respectively; clear them. */
-	int * pagedirectory = (int *) smbase;
-	int * pagetable = (int *) (smbase + 0x1000);
+	int * pagedirectory = (int *) tseg_start;
+	int * pagetable = (int *) (tseg_start + 0x1000);
 
 	/* Clear out the page directory except for one entry pointing to the
 	 * page table, and clear the page table entirely. */
 	outb(0x80, 0x52);
-	pagedirectory[0] = (smbase + 0x1000) | PTE_PRESENT | PTE_READ_WRITE;
+	pagedirectory[0] = (tseg_start + 0x1000) | PTE_PRESENT | PTE_READ_WRITE;
 	outb(0x80, 0x53);
 	for (i = 1; i < 1024; i++)
 	{
@@ -85,15 +86,13 @@ void * pt_setup(int smbase) {
 
 	/* Map 0x200000 to TSEG */
 	for (i = 0; i < 128; i++) {
-		pagetable[0x200 + i] = (0x1FF80000 + i * 0x1000) | MAP_FLAGS;
+		pagetable[0x200 + i] = (tseg_start + 0x2000 + i * 0x1000) | MAP_FLAGS;
 	}
 
 	/* Map 0x300000 -> 0x200000, so we can copy our code out of
 	 * RAM the first time around */
 	for (i = 0; i < 256; i++) {
-	/*	pagetable[0x300 + i] = (0x200000 + i * 0x1000) | MAP_FLAGS;
-	 */
-		pagetable[0x200 + i] = (0x200000 + i * 0x1000) | MAP_FLAGS;
+		pagetable[0x300 + i] = (0x200000 + i * 0x1000) | MAP_FLAGS;
 	}
 
 	outb(0x80, 0x57);
@@ -102,10 +101,10 @@ void * pt_setup(int smbase) {
 
 void c_entry(void)
 {
-//	unsigned char *bp;
+	unsigned char *bp;
 
 	outb(0x80, 0x41);
-	char * pagedir = pt_setup(0xA0000);
+	char * pagedir = pt_setup(0xA0000, 0x1FF80000, 0x80000);
 	outb(0x80, 0x43);
 	set_cr3((int)pagedir);
 	outb(0x80, 0xA5);
@@ -113,16 +112,17 @@ void c_entry(void)
 	/* Turn paging on */
 	set_cr0(get_cr0() | CR0_PG);
 	outb(0x80, 0xAA);
+
+	
 	if (!entry_initialized) {
 		outb(0x80, 0xAB);
-/*
 		for (bp = (void *)0x200000; (void *)bp < (void *)&_bss; bp++)
 			*bp = *(bp + 0x100000);
-
 		for (bp = (void *)&_bss; (void *)bp < (void *)&_bssend; bp++)
 			*bp = 0;
-			*/
 	}
 
-	smi_entry();
+	outb(0x80, 0xAC);
+	ps_switch_stack(smi_entry, 0x2FF000);
+	outb(0x80, 0xFA);
 }
