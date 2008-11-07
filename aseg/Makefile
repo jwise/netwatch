@@ -30,7 +30,8 @@ LWIP_OBJS = \
 OBJS=counter.o firstrun.o ../pci/pci-raw.o ../lib/minilib.o ../lib/console.o \
 	../ich2/smram-ich2.o ../ich2/smi.o vga-overlay.o packet.o \
 	../lib/sprintf.o ../lib/doprnt.o ../pci/pci.o ../net/net.o \
-	../ich2/ich2-timer.o ../pci/pci-bother.o ../net/3c90x.o keyboard.o $(LWIP_OBJS)
+	../ich2/ich2-timer.o ../pci/pci-bother.o ../net/3c90x.o keyboard.o \
+	../lib/serial.o $(LWIP_OBJS)
 
 all: aseg.elf
 
