@@ -88,7 +88,7 @@ void dolog(const char *s)
 	strcpy(logents[prodptr], s);
 	prodptr = (prodptr + 1) % LOGLEN;
 	while (*s)
-		serial_tx(*s);
+		serial_tx(*(s++));
 	if (flush_imm)
 		outlog();
 }
