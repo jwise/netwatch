@@ -4,6 +4,7 @@
 #include <minilib.h>
 #include <smi.h>
 #include <pci-bother.h>
+#include <serial.h>
 #include "../net/net.h"
 #include "vga-overlay.h"
 
@@ -111,10 +112,13 @@ void c_entry(void)
 
 	/* Turn paging on */
 	set_cr0(get_cr0() | CR0_PG);
+	serial_init();
+	serial_tx('A');
 	outb(0x80, 0xAA);
 
 	
 	if (!entry_initialized) {
+		serial_tx('B');
 		outb(0x80, 0xAB);
 		for (bp = (void *)0x200000; (void *)bp < (void *)&_bss; bp++)
 			*bp = *(bp + 0x100000);
