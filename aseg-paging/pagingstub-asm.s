@@ -11,3 +11,10 @@ set_cr0_cont:                           # Hey, here we are!
   addl $6, %esp                         # Un-do 48 bits of pushing
   ret
 
+
+.globl ps_switch_stack
+ps_switch_stack:
+  mov 4(%esp), %eax
+  mov 8(%esp), %esp   
+  call *%eax
+  rsm
