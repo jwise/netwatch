@@ -105,28 +105,31 @@ void c_entry(void)
 	unsigned char *bp;
 
 	outb(0x80, 0x41);
-	char * pagedir = pt_setup(0xA0000, 0x1FF80000, 0x80000);
-	outb(0x80, 0x43);
-	set_cr3((int)pagedir);
-	outb(0x80, 0xA5);
-
-	/* Turn paging on */
+	if (!entry_initialized)
+		pt_setup(0xA0000, 0x1FF80000, 0x80000);
+		
+	/* Enable paging. */
+	outb(0x80, 0x42);
+	set_cr3(0x1FF80000);
 	set_cr0(get_cr0() | CR0_PG);
-	serial_init();
-	serial_tx('A');
-	outb(0x80, 0xAA);
-
 	
+	outb(0x80, 0x43);
 	if (!entry_initialized) {
-		serial_tx('B');
-		outb(0x80, 0xAB);
+		extern void __firstrun_start();
+		
+		/* If needed, copy in data. */
 		for (bp = (void *)0x200000; (void *)bp < (void *)&_bss; bp++)
 			*bp = *(bp + 0x100000);
 		for (bp = (void *)&_bss; (void *)bp < (void *)&_bssend; bp++)
 			*bp = 0;
+		serial_init();
+		dolog("Paging enabled.");
+		__firstrun_start();	/* Now initialize BSS, etc. */
+		
+		entry_initialized = 1;
 	}
 
-	outb(0x80, 0xAC);
-	ps_switch_stack(smi_entry, 0x2FF000);
+	outb(0x80, 0x44);
+	ps_switch_stack(smi_entry, 0x270000);
 	outb(0x80, 0xFA);
 }

@@ -89,6 +89,8 @@ void dolog(const char *s)
 	prodptr = (prodptr + 1) % LOGLEN;
 	while (*s)
 		serial_tx(*(s++));
+	serial_tx('\r');
+	serial_tx('\n');
 	if (flush_imm)
 		outlog();
 }
@@ -96,6 +98,20 @@ void (*output)(const char *s) = dolog;
 
 void dologf(const char *fmt, ...)
 {
+	char *s;
+	va_list va;
+	
+	va_start(va, fmt);
+	vsnprintf(logents[prodptr], 40, fmt, va);
+	s = logents[prodptr];
+	while (*s)
+		serial_tx(*(s++));
+	serial_tx('\r');
+	serial_tx('\n');
+	va_end(va);
+	prodptr = (prodptr + 1) % LOGLEN;
+	if (flush_imm)
+		outlog();
 }
 void (*outputf)(const char *s, ...) = dologf;
 

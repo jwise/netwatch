@@ -44,7 +44,9 @@ void serial_init()
 
 void serial_tx(unsigned char c)
 {
-	while (!(_inb(SER_LSR) & SER_LSR_THR_EMPTY))
+	int i = 100000;
+	
+	while (!(_inb(SER_LSR) & SER_LSR_THR_EMPTY) && (i--))
 		;
 	_outb(SER_THR, c);
 }

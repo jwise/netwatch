@@ -4,6 +4,7 @@
 #include <minilib.h>
 #include <smi.h>
 #include <pci-bother.h>
+#include <serial.h>
 #include "../net/net.h"
 #include "vga-overlay.h"
 
@@ -49,6 +50,9 @@ void smi_entry(void)
 	strblit(statstr, 0, 0);
 	outb(0x80, 0x4B);
 	
+	serial_init();
+	dolog("wee!");
+	
 	/*
 	eth_poll();
 	*/
@@ -62,9 +66,9 @@ void smi_entry(void)
 		outl(0x840, 0x0100);
 	}
 
-/*
+
 	smi_poll();
-	
+/*	
 	pci_bother_all();
  */
 	outl(0xCF8, pcisave);
@@ -85,6 +89,10 @@ void timer_handler(smi_event_t ev)
 
 
 void __firstrun_start() {
+	smram_state_t smram;
+	
+	smram = smram_save_state();
+	smram_tseg_set_state(SMRAM_TSEG_OPEN);
 	smi_disable();
 	outb(0x80, 0x41);
 
