@@ -33,10 +33,10 @@ unsigned char _inb(unsigned short port)
 void serial_init()
 {
 	unsigned short baud = SER_BAUD_REQ / SER_BAUD_BASE;
-	_outb(SER_LCR, inb(SER_LCR) | SER_LCR_DLAB);
+	_outb(SER_LCR, _inb(SER_LCR) | SER_LCR_DLAB);
 	_outb(SER_DLL, baud & 0xFF);
 	_outb(SER_DLM, baud >> 8);
-	_outb(SER_LCR, inb(SER_LCR) & ~SER_LCR_DLAB);
+	_outb(SER_LCR, _inb(SER_LCR) & ~SER_LCR_DLAB);
 	_outb(SER_IER, 0x0);
 	_outb(SER_FCR, 0x0);	/* FIFOs off */
 	_outb(SER_LCR, 0x03);	/* 8 data bits, one stop bit, no parity */
