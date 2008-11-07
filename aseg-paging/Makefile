@@ -6,7 +6,7 @@ CFLAGS=-I../include -I../include/raw \
 
 STUBOBJS=entry.o pagingstub-asm.o pagingstub.o
 
-OBJS=smi.o ../ich2/smi.o ../ich2/smram-ich2.o vga-overlay.o ../pci/pci-raw.o ../lib/minilib.o ../lib/doprnt.o ../lib/sprintf.o ../lib/console.o
+OBJS=smi.o ../ich2/smi.o ../ich2/smram-ich2.o vga-overlay.o ../pci/pci-raw.o ../lib/minilib.o ../lib/doprnt.o ../lib/sprintf.o ../lib/console.o ../lib/serial.o
 
 all: aseg.elf
 

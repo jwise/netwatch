@@ -19,6 +19,7 @@ void __firstrun_start() {
 	
 	smram = smram_save_state();
 	smram_tseg_set_state(SMRAM_TSEG_OPEN);
+	serial_init();
 /*	
 	for (bp = (void *)&_bss; (void *)bp < (void *)&_bssend; bp++)
 		*bp = 0;
