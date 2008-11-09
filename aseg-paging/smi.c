@@ -8,30 +8,9 @@
 #include "../net/net.h"
 #include "vga-overlay.h"
 
-#include "pagetable.h"
-
 unsigned int counter = 0;
-unsigned int lastctr = 0;
 unsigned long pcisave = 0;
 unsigned char vgasave = 0;
-
-void set_cr0(unsigned int);
-
-#define get_cr0() \
-    ({ \
-        register unsigned int _temp__; \
-        asm volatile("mov %%cr0, %0" : "=r" (_temp__)); \
-        _temp__; \
-    })
-
-
-#define set_cr3(value) \
-    { \
-        register unsigned int _temp__ = (value); \
-        asm volatile("mov %0, %%cr3" : : "r" (_temp__)); \
-     }
-#define	CR0_PG	0x80000000
-
 
 void smi_entry(void)
 {
@@ -45,13 +24,14 @@ void smi_entry(void)
  */
 	counter++;
 	outb(0x80, 0x2B);
-	sprintf(statstr, "15-412! %08x %08x", smi_status(), counter);
+	sprintf(statstr, "NetWatch! %08x %08x", smi_status(), counter);
 	outb(0x80, 0x3B);
 	strblit(statstr, 0, 0);
 	outb(0x80, 0x4B);
 	
 	serial_init();
-	dolog("wee!");
+/*	dolog("wee!");
+ */
 	
 	/*
 	eth_poll();
@@ -75,30 +55,29 @@ void smi_entry(void)
 	outb(0x3D4, vgasave);
 }
 
-void timer_handler(smi_event_t ev)
-{
-        static unsigned int ticks = 0;
+extern void timer_handler(smi_event_t ev);
+extern void kbc_handler(smi_event_t ev);
+extern void gbl_rls_handler(smi_event_t ev);
 
-        smi_disable_event(SMI_EVENT_FAST_TIMER);
-        smi_enable_event(SMI_EVENT_FAST_TIMER);
+void __firstrun_stub() {
 
-        outb(0x80, (ticks++) & 0xFF);
+        /* Try really hard to shut up USB_LEGKEY. */
+        pci_write16(0, 31, 2, 0xC0, pci_read16(0, 31, 2, 0xC0));
+        pci_write16(0, 31, 2, 0xC0, 0);
+        pci_write16(0, 31, 4, 0xC0, pci_read16(0, 31, 4, 0xC0));
+        pci_write16(0, 31, 4, 0xC0, 0);
 
-        outlog();
-}
-
-
-void __firstrun_start() {
-	smram_state_t smram;
-	
-	smram = smram_save_state();
-	smram_tseg_set_state(SMRAM_TSEG_OPEN);
-	smi_disable();
-	outb(0x80, 0x41);
+        /* Turn on the SMIs we want */
+        smi_disable();
 
         smi_register_handler(SMI_EVENT_FAST_TIMER, timer_handler);
         smi_enable_event(SMI_EVENT_FAST_TIMER);
 
+        smi_register_handler(SMI_EVENT_DEVTRAP_KBC, kbc_handler);
+        smi_enable_event(SMI_EVENT_DEVTRAP_KBC);
+
+        smi_register_handler(SMI_EVENT_GBL_RLS, gbl_rls_handler);
+        smi_enable_event(SMI_EVENT_GBL_RLS);
+
         smi_enable();
 }
-

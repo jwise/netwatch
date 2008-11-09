@@ -6,7 +6,54 @@ CFLAGS=-I../include -I../include/raw \
 
 STUBOBJS=entry.o pagingstub-asm.o pagingstub.o
 
-OBJS=smi.o ../ich2/smi.o ../ich2/smram-ich2.o vga-overlay.o ../pci/pci-raw.o ../lib/minilib.o ../lib/doprnt.o ../lib/sprintf.o ../lib/console.o ../lib/serial.o
+LWIP_OBJS = \
+	../lwip/src/core/dhcp.o \
+	../lwip/src/core/dns.o \
+	../lwip/src/core/init.o \
+	../lwip/src/core/ipv4/autoip.o \
+	../lwip/src/core/ipv4/icmp.o \
+	../lwip/src/core/ipv4/igmp.o \
+	../lwip/src/core/ipv4/inet.o \
+	../lwip/src/core/ipv4/inet_chksum.o \
+	../lwip/src/core/ipv4/ip.o \
+	../lwip/src/core/ipv4/ip_addr.o \
+	../lwip/src/core/ipv4/ip_frag.o \
+	../lwip/src/core/mem.o \
+	../lwip/src/core/memp.o \
+	../lwip/src/core/netif.o \
+	../lwip/src/core/pbuf.o \
+	../lwip/src/core/raw.o \
+	../lwip/src/core/stats.o \
+	../lwip/src/core/sys.o \
+	../lwip/src/core/tcp.o \
+	../lwip/src/core/tcp_in.o \
+	../lwip/src/core/tcp_out.o \
+	../lwip/src/core/udp.o \
+	../lwip/src/netif/etharp.o \
+	../lwip/src/netif/ethernetif.o
+
+
+OBJS =	../ich2/smi.o \
+	../ich2/smram-ich2.o \
+	../ich2/ich2-timer.o \
+	../pci/pci.o \
+	../pci/pci-raw.o \
+	../pci/pci-bother.o \
+	../net/net.o \
+	../net/3c90x.o \
+	../lib/minilib.o \
+	../lib/doprnt.o \
+	../lib/sprintf.o \
+	../lib/console.o \
+	../lib/serial.o \
+	../aseg/keyboard.o \
+	../aseg/packet.o \
+	$(LWIP_OBJS) \
+	smi.o \
+	vga-overlay.o \
+	main.o \
+	firstrun.o
+
 
 all: aseg.elf
 

@@ -13,20 +13,12 @@ extern void timer_handler(smi_event_t ev);
 extern void kbc_handler(smi_event_t ev);
 extern void gbl_rls_handler(smi_event_t ev);
 
-void __firstrun_start() {
-	unsigned char *bp;
+void smi_init() {
 	smram_state_t smram;
 	
 	smram = smram_save_state();
 	smram_tseg_set_state(SMRAM_TSEG_OPEN);
-	serial_init();
-/*	
-	for (bp = (void *)&_bss; (void *)bp < (void *)&_bssend; bp++)
-		*bp = 0;
-	
-	vga_flush_imm(0);
-*/
-	
+
 	outputf("NetWatch running");
 
 	/* Try really hard to shut up USB_LEGKEY. */
@@ -37,19 +29,18 @@ void __firstrun_start() {
 
 	/* Turn on the SMIs we want */
 	smi_disable();
-	/*
 	
 	eth_init();
-	
+
 	smi_register_handler(SMI_EVENT_FAST_TIMER, timer_handler);
 	smi_enable_event(SMI_EVENT_FAST_TIMER);
-	
+
 	smi_register_handler(SMI_EVENT_DEVTRAP_KBC, kbc_handler);
 	smi_enable_event(SMI_EVENT_DEVTRAP_KBC);
 	
 	smi_register_handler(SMI_EVENT_GBL_RLS, gbl_rls_handler);
 	smi_enable_event(SMI_EVENT_GBL_RLS);
-*/
+
 	smi_enable();
 	
 	vga_flush_imm(1);

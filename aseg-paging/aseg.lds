@@ -39,7 +39,7 @@ SECTIONS
 	.info : {
 		_start = .;
 		LONG(0x5754454E);
-		LONG(__firstrun_start);
+		LONG(__firstrun_stub);
 	}
 
 }

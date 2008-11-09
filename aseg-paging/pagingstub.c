@@ -8,8 +8,8 @@
 #include "../net/net.h"
 #include "vga-overlay.h"
 
+extern void smi_init();
 #include "vm_flags.h"
-#include "pagetable.h"
 
 void set_cr0(unsigned int);
 void ps_switch_stack (void (*call)(), int stack);
@@ -115,7 +115,6 @@ void c_entry(void)
 	
 	outb(0x80, 0x43);
 	if (!entry_initialized) {
-		extern void __firstrun_start();
 		
 		/* If needed, copy in data. */
 		for (bp = (void *)0x200000; (void *)bp < (void *)&_bss; bp++)
@@ -124,7 +123,7 @@ void c_entry(void)
 			*bp = 0;
 		serial_init();
 		dolog("Paging enabled.");
-		__firstrun_start();	/* Now initialize BSS, etc. */
+		smi_init();
 		
 		entry_initialized = 1;
 	}
