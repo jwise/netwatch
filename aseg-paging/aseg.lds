@@ -19,15 +19,15 @@ SECTIONS
 
 	. = 0x200000;
 
-	.maincode : {
-		*(.data);
-		*(.rodata);
-		*(.text);
-		_bss = .;
-		*(.bss);
-		_bssend = .;
-		_end = .;
-	}
+	.text : { *(.text); }
+	.data : { *(.data); }
+	.rodata : { *(.rodata); }
+	.text : { *(.text); }
+	
+	_bss = .;
+	.bss : { *(.bss); }
+	_bssend = .;
+	_end = .;
 
 	.stack : { 
 		. = . + 0x10000;
