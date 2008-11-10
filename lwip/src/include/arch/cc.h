@@ -2,6 +2,7 @@
 #define _ARCH_CC_H
 
 #include <stdint.h>
+#include <vga-overlay.h>
 #include <minilib.h>
 
 typedef uint8_t u8_t;
@@ -27,8 +28,7 @@ typedef uint32_t mem_ptr_t;
 #define LWIP_PLATFORM_HTONS(x) htons(x)
 #define LWIP_PLATFORM_HTONL(x) htonl(x)
 
-/* XXX fix this */
-#define LWIP_PLATFORM_DIAG(x)
-#define LWIP_PLATFORM_ASSERT(x)
+#define LWIP_PLATFORM_DIAG(x) dolog(x)
+#define LWIP_PLATFORM_ASSERT(x) dologf("ASSERT FAILED: %s\n", (x));
 
 #endif
