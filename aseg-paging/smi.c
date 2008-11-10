@@ -15,27 +15,17 @@ unsigned char vgasave = 0;
 void smi_entry(void)
 {
 	char statstr[512];
-	outb(0x80, 0x0B);
+
 	pcisave = inl(0xCF8);
 	vgasave = inb(0x3D4);
-	outb(0x80, 0x1B);
-/*
 	pci_unbother_all();
- */
+
 	counter++;
-	outb(0x80, 0x2B);
 	sprintf(statstr, "NetWatch! %08x %08x", smi_status(), counter);
-	outb(0x80, 0x3B);
 	strblit(statstr, 0, 0);
-	outb(0x80, 0x4B);
 	
 	serial_init();
-/*	dolog("wee!");
- */
-	
-	/*
 	eth_poll();
-	*/
 	
 	if (inl(0x840) & 0x1000)
 	{
@@ -48,9 +38,8 @@ void smi_entry(void)
 
 
 	smi_poll();
-/*	
+	
 	pci_bother_all();
- */
 	outl(0xCF8, pcisave);
 	outb(0x3D4, vgasave);
 }

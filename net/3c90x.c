@@ -45,6 +45,7 @@
 #include <pci-bother.h>
 #include <minilib.h>
 #include <output.h>
+#include <paging.h>
 
 #define	XCVR_MAGIC	(0x5A00)
 /** any single transmission fails after 16 collisions or other errors

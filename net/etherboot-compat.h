@@ -1,6 +1,8 @@
 #ifndef _ETHERBOOT_COMPAT_H
 #define _ETHERBOOT_COMPAT_H
 
+#include <paging.h>
+
 #define ETH_ALEN	6
 
 struct dev {
@@ -18,6 +20,6 @@ struct nic {
 	void (*transmit) (const char *dest_addr, unsigned int proto, unsigned int size, const char *pkt);
 };
 
-#define virt_to_bus(x) ((unsigned long)x)
+#define virt_to_bus(x) memory_v2p((void *)(x))
 
 #endif
