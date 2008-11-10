@@ -5,6 +5,7 @@
 #include <smi.h>
 #include <pci-bother.h>
 #include <serial.h>
+#include "traps.h"
 #include "../net/net.h"
 #include "vga-overlay.h"
 
@@ -114,6 +115,7 @@ void c_entry(void)
 	set_cr0(get_cr0() | CR0_PG);
 	
 	outb(0x80, 0x43);
+
 	if (!entry_initialized) {
 		
 		/* If needed, copy in data. */
@@ -123,6 +125,11 @@ void c_entry(void)
 			*bp = 0;
 		serial_init();
 		dolog("Paging enabled.");
+	}
+
+	traps_install();
+
+	if (!entry_initialized) {
 		smi_init();
 		
 		entry_initialized = 1;

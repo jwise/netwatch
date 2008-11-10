@@ -53,6 +53,7 @@ OBJS =	../ich2/smi.o \
 	smi.o \
 	vga-overlay.o \
 	main.o \
+	traps.o \
 	firstrun.o
 
 
