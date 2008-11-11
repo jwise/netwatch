@@ -13,6 +13,8 @@
 #include "lwip/sys.h"
 #include <lwip/stats.h>
 #include <lwip/snmp.h>
+#include <lwip/dhcp.h>
+#include <lwip/tcp.h>
 #include "netif/etharp.h"
 #include "netif/ppp_oe.h"
 
@@ -28,11 +30,20 @@ void eth_poll()
 	struct pbuf *p, *q;
 	struct eth_hdr *ethhdr;
 	int pos = 0;
+	static int ticks = 0;
 	
 	if (!_nic)
 		return;
 	
 	smram_tseg_set_state(SMRAM_TSEG_OPEN);
+	
+	if ((ticks % 1000) == 0)	/* About a minute */
+		dhcp_coarse_tmr();
+	if ((ticks % 8) == 0)	/* About 500msec*/
+		dhcp_fine_tmr();
+	if ((ticks % 4) == 0)	/* About 250msec*/
+		tcp_tmr();
+	ticks++;
 
 	if (!_nic->poll(_nic, 0))
 		return;
@@ -129,13 +140,14 @@ static err_t _init(struct netif *netif)
 
 int eth_register(struct nic *nic)
 {
-	static struct ip_addr ipa = { 0x2dba0280 } , netmask = { 0xF0FFFFFF } , gw = { 0x2eba0280 };
+	static struct ip_addr ipa = { 0 } , netmask = { 0 } , gw = { 0 };
 	
 	if (_nic)
 		return -1;
 	netif_add(&_netif, &ipa, &netmask, &gw, (void*)nic, _init, ethernet_input);
 	netif_set_default(&_netif);
 	netif_set_up(&_netif);
+	dhcp_start(&_netif);
 	_nic = nic;
 	return 0;
 }
