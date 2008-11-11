@@ -48,7 +48,6 @@ OBJS =	../ich2/smi.o \
 	../lib/sprintf.o \
 	../lib/console.o \
 	../lib/serial.o \
-	../lib/paging.o \
 	../aseg/keyboard.o \
 	../aseg/packet.o \
 	$(LWIP_OBJS) \

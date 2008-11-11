@@ -8,6 +8,13 @@
 #ifndef _VM_FLAGS_H
 #define _VM_FLAGS_H
 
+#define PTE_FOR(x)      (((unsigned int)(x) >> 12) & 0x3FF)
+#define PDE_FOR(x)      ((unsigned int)(x) >> 22)
+#define ADDR_12_MASK(x)	((unsigned int)(x) & ~((1 << 12) - 1))
+#define ADDR_22_MASK(x)	((unsigned int)(x) & ~((1 << 22) - 1))
+#define LOWER_12(x)	((unsigned int)(x) & ((1 << 12) - 1))
+#define LOWER_22(x)	((unsigned int)(x) & ((1 << 22) - 1))
+
 #define PDE_4M_ADDR_SHIFT       22
 #define PTE_4K_ADDR_SHIFT       12
 #define PDE_TABLE_ADDR_SHIFT    12

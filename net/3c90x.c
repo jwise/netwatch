@@ -489,11 +489,11 @@ a3c90x_transmit(unsigned int size, const char *pkt)
 		INF_3C90X.TransmitDPD.DnNextPtr = 0;
 		/** set notification for transmission completion (bit 15) **/
 		INF_3C90X.TransmitDPD.FrameStartHeader = (size) | 0x8000;
-		INF_3C90X.TransmitDPD.DataAddr = memory_v2p((void*)pkt);
+		INF_3C90X.TransmitDPD.DataAddr = v2p((void*)pkt);
 		INF_3C90X.TransmitDPD.DataLength = size + (1<<31);
 
 		/** Send the packet **/
-		outl(INF_3C90X.IOAddr + regDnListPtr_l, memory_v2p(&(INF_3C90X.TransmitDPD)));
+		outl(INF_3C90X.IOAddr + regDnListPtr_l, v2p(&(INF_3C90X.TransmitDPD)));
 		_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 3 /* Unstall download */);
 		
 		oneshot_start_ms(100);
@@ -578,11 +578,11 @@ a3c90x_poll(struct nic *nic, int retrieve)
     /** Build the up-load descriptor **/
     INF_3C90X.ReceiveUPD.UpNextPtr = 0;
     INF_3C90X.ReceiveUPD.UpPktStatus = 0;
-    INF_3C90X.ReceiveUPD.DataAddr = memory_v2p(nic->packet);
+    INF_3C90X.ReceiveUPD.DataAddr = v2p(nic->packet);
     INF_3C90X.ReceiveUPD.DataLength = 1536 + (1<<31);
 
     /** Submit the upload descriptor to the NIC **/
-    _outl(memory_v2p(&(INF_3C90X.ReceiveUPD)),
+    _outl(v2p(&(INF_3C90X.ReceiveUPD)),
          INF_3C90X.IOAddr + regUpListPtr_l);
 
     /** Wait for upload completion (upComplete(15) or upError (14)) **/

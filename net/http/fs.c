@@ -33,10 +33,11 @@
 #include "fs.h"
 #include "fsdata.h"
 #include "fsdata.c"
+#include <io.h>
 
 /*-----------------------------------------------------------------------------------*/
 
-void fill_regs(struct fs_file *file)
+void handle_regs(struct fs_file *file)
 {
   static unsigned char buf[2048];
   
@@ -63,7 +64,14 @@ void fill_regs(struct fs_file *file)
     
   
   file->data = buf;
-  file->len = strlen(buf);
+  file->len = strlen(buf)-1;
+}
+
+void handle_reboot(struct fs_file *file)
+{
+  outb(0xCF9, 0x4);
+  file->data = "So long!";
+  file->len = 8;
 }
 
 
@@ -76,7 +84,12 @@ fs_open(const char *name, struct fs_file *file)
   /* /registers.html is CGI */
   if (!strcmp(name, "/registers.html"))
   {
-    fill_regs(file);
+    handle_regs(file);
+    return 1;
+  }
+  if (!strcmp(name, "/reboot"))
+  {
+    handle_reboot(file);
     return 1;
   }
 
@@ -85,7 +98,7 @@ fs_open(const char *name, struct fs_file *file)
       f = f->next) {
     if (!strcmp(name, (const char*)f->name)) {
       file->data = f->data;
-      file->len = f->len;
+      file->len = f->len-1;
       return 1;
     }
   }

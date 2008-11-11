@@ -92,7 +92,7 @@ void traps_install(void) {
 
         struct pseudo_descriptor pdesc;
 	pdesc.limit = sizeof(idt) - 1;
-	pdesc.linear_base = memory_v2p(&idt);
+	pdesc.linear_base = v2p(&idt);
 
 	WRAPPER_INSTALL(idt, TRAP, fault_divide, T_DIVIDE_ERROR);
 	WRAPPER_INSTALL(idt, TRAP, fault_gp, T_GENERAL_PROTECTION);
