@@ -224,8 +224,6 @@ typedef struct
     {
     unsigned int	DnNextPtr;
     unsigned int	FrameStartHeader;
-    unsigned int	HdrAddr;
-    unsigned int	HdrLength;
     unsigned int	DataAddr;
     unsigned int	DataLength;
     }
@@ -475,16 +473,8 @@ static void a3c90x_reset(void)
  *** pkt - the pointer to the packet data itself.
  ***/
 static void
-a3c90x_transmit(const char *dest_addr, unsigned int proto,
-                unsigned int size, const char *pkt)
+a3c90x_transmit(unsigned int size, const char *pkt)
 {
-	struct eth_hdr
-	{
-		unsigned char dst_addr[ETH_ALEN];
-		unsigned char src_addr[ETH_ALEN];
-		unsigned short type;
-	} hdr;
-		
 	unsigned char status;
 	unsigned int i, retries;
 
@@ -495,16 +485,10 @@ a3c90x_transmit(const char *dest_addr, unsigned int proto,
 		
 		_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 2 /* Stall download */);
 
-		hdr.type = htons(proto);
-		memcpy(hdr.dst_addr, dest_addr, ETH_ALEN);
-		memcpy(hdr.src_addr, INF_3C90X.HWAddr, ETH_ALEN);
-
 		/** Setup the DPD (download descriptor) **/
 		INF_3C90X.TransmitDPD.DnNextPtr = 0;
 		/** set notification for transmission completion (bit 15) **/
-		INF_3C90X.TransmitDPD.FrameStartHeader = (size + sizeof(hdr)) | 0x8000;
-		INF_3C90X.TransmitDPD.HdrAddr = memory_v2p(&hdr);
-		INF_3C90X.TransmitDPD.HdrLength = sizeof(hdr);
+		INF_3C90X.TransmitDPD.FrameStartHeader = (size) | 0x8000;
 		INF_3C90X.TransmitDPD.DataAddr = memory_v2p((void*)pkt);
 		INF_3C90X.TransmitDPD.DataLength = size + (1<<31);
 
@@ -937,6 +921,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     /* * Set our exported functions **/
     nic.poll     = a3c90x_poll;
     nic.transmit = a3c90x_transmit;
+    memcpy(nic.hwaddr, INF_3C90X.HWAddr, 6);
     eth_register(&nic);
 
     return 1;

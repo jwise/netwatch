@@ -15,9 +15,11 @@ struct nic {
 
 	unsigned int ioaddr;
 	unsigned int irqno;
+	
+	unsigned char hwaddr[6];
 
 	int (*poll) (struct nic *nic, int retrieve);
-	void (*transmit) (const char *dest_addr, unsigned int proto, unsigned int size, const char *pkt);
+	void (*transmit) (unsigned int size, const char *pkt);
 };
 
 #define virt_to_bus(x) memory_v2p((void *)(x))

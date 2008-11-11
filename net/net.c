@@ -1,121 +1,141 @@
 #include <pci.h>
-#include <io.h>
-#include <video_defines.h>
 #include <smram.h>
 #include <pci-bother.h>
 #include <output.h>
 #include <minilib.h>
 #include <lwip/init.h>
 #include "net.h"
-#include "../aseg/keyboard.h"
+
+#include "lwip/opt.h"
+#include "lwip/def.h"
+#include "lwip/mem.h"
+#include "lwip/pbuf.h"
+#include "lwip/sys.h"
+#include <lwip/stats.h>
+#include <lwip/snmp.h>
+#include "netif/etharp.h"
+#include "netif/ppp_oe.h"
 
 static struct nic *_nic = 0x0;
+static struct netif _netif;
 
 extern struct pci_driver a3c90x_driver;
 
-static char test[1024] = {0};
-
-static char packet[4096] = {0};
-
-typedef struct packet_t {
-	char from[6];
-	char to[6];
-	unsigned short ethertype;
-	unsigned short datalen;
-	unsigned char command;
-	char data[];
-} packet_t;
-
-static unsigned char vga_read(unsigned char idx)
-{
-	outb(CRTC_IDX_REG, idx);
-	return inb(CRTC_DATA_REG);
-}
-
-static unsigned int vga_base()
-{
-	return (((unsigned int) vga_read(CRTC_START_ADDR_MSB_IDX)) << 9)
-	     + (((unsigned int) vga_read(CRTC_START_ADDR_LSB_IDX)) << 1);
-}
-
-void handle_command(packet_t * p)
-{
-	uint16_t dl = htons(p->datalen);
-	int i;
-
-	outputf("NIC: Command: 0x%x, %d bytes", p->command, dl);
-
-	switch (p->command) {
-	case 0x42:
-		for (i = 0; i < dl; i++)
-			kbd_inject_key(p->data[i]);
-		break;
-	case 0xFE:
-		outb(0xCF9, 0x4);       /* Reboot */
-		break;
-	}
-}
-
 void eth_poll()
 {
-	int i;
-//	static int c;
-	static short pos = 0x0;
-	unsigned short base = vga_base();
-	unsigned char *p = (unsigned char *)0xB8000;
-	smram_state_t old_state;
+	unsigned char pkt[1600];
+	int len;
+	struct pbuf *p, *q;
+	struct eth_hdr *ethhdr;
+	int pos = 0;
 	
 	if (!_nic)
 		return;
-
-	if (_nic->poll(_nic, 0)) {
-		_nic->packet = packet;
-		_nic->poll(_nic, 1);
-
-		packet_t * p = (packet_t *) packet;
-
-		outputf("NIC: Packet: %d 0x%x", _nic->packetlen, htons(p->ethertype));
-		if (htons(p->ethertype) == 0x1338) {
-			if (htons(p->datalen) + sizeof(packet_t) > _nic->packetlen) {
-				outputf("NIC: Malformed packet");
-			} else {
-				handle_command(p);
-			}
-		}
-	}
+	
 	smram_tseg_set_state(SMRAM_TSEG_OPEN);
-	old_state = smram_save_state();
-	
-//	if ((c++) % 2)
-//		return;
 
-	if (((base + 80*25*2)%0x8000) < base)
-	{
-		if ((pos > ((base + 80*25*2)%0x8000)) && (pos < base))
-			pos = base;
-	} else if ((pos > base + 80*25*2) || (pos < base))
-		pos = base;
+	if (!_nic->poll(_nic, 0))
+		return;
 	
-	test[0] = pos >> 8;
-	test[1] = pos & 0xFF;
-	test[2] = base >> 8;
-	test[3] = base & 0xFF;
+	_nic->packet = pkt;
+	_nic->poll(_nic, 1);
+	
+	len = _nic->packetlen;
 
-	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
-	
-	for (i = 4; i < 1024; i++)
+	outputf("NIC: Packet: %d bytes", len);
+		
+	p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
+	if (p == NULL)
 	{
-		test[i] = p[pos++];
-		pos %= 0x8000;
+		outputf("NIC: out of memory for packet?");
+		LINK_STATS_INC(link.memerr);
+		LINK_STATS_INC(link.drop);
+		return;
 	}
-	smram_restore_state(old_state);
-	_nic->transmit("\x00\x03\x93\x87\x84\x8C", 0x1337, 1024, test);
+	
+	for(q = p; q != NULL; q = q->next)
+	{
+		memcpy(q->payload, pkt+pos, q->len);
+		pos += q->len;
+	}
+
+	LINK_STATS_INC(link.recv);
+	
+	ethhdr = p->payload;
+
+	switch (htons(ethhdr->type)) {
+	case ETHTYPE_IP:
+	case ETHTYPE_ARP:
+		if (_netif.input(p, &_netif) != ERR_OK)
+		{
+			LWIP_DEBUGF(NETIF_DEBUG, ("netdev_input: IP input error\n"));
+			pbuf_free(p);
+		}
+		break;
+
+	default:
+		outputf("Unhandled packet type %04x input", ethhdr->type);
+		pbuf_free(p);
+		break;
+	}
+}
+
+static err_t _transmit(struct netif *netif, struct pbuf *p)
+{
+	struct nic *nic = netif->state;
+	struct pbuf *q;
+	unsigned char pkt[1600];
+	unsigned int len = 0;
+
+	for(q = p; q != NULL; q = q->next)
+	{
+		memcpy(pkt + len, q->payload, q->len);
+		len += q->len;
+	}
+
+	outputf("NIC: Transmit packet: %d bytes", len);
+
+	nic->transmit(len, pkt);
+
+	LINK_STATS_INC(link.xmit);
+
+	return ERR_OK;
+}
+
+static err_t _init(struct netif *netif)
+{
+	struct nic *nic = netif->state;
+	
+	LWIP_ASSERT("netif != NULL", (netif != NULL));
+		
+#if LWIP_NETIF_HOSTNAME
+	netif->hostname = "netwatch";
+#endif
+	
+	NETIF_INIT_SNMP(netif, snmp_ifType_ethernet_csmacd, 100000000);
+
+	netif->name[0] = 'e';
+	netif->name[1] = 'n';
+	netif->output = etharp_output;
+	netif->linkoutput = _transmit;
+	
+	memcpy(netif->hwaddr, nic->hwaddr, 6);
+	netif->mtu = 1500;
+	netif->hwaddr_len = ETHARP_HWADDR_LEN;
+	netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_LINK_UP;
+	
+	return ERR_OK;
 }
 
 int eth_register(struct nic *nic)
 {
+	static struct ip_addr ipa = { 0x2dba0280 } , netmask = { 0xF0FFFFFF } , gw = { 0x2eba0280 };
+	
 	if (_nic)
 		return -1;
+	netif_add(&_netif, &ipa, &netmask, &gw, (void*)nic, _init, ethernet_input);
+	netif_set_default(&_netif);
+	netif_set_up(&_netif);
 	_nic = nic;
 	return 0;
 }
@@ -124,6 +144,6 @@ void eth_init()
 {
 	/* Required for DMA to work. :( */
 	smram_tseg_set_state(SMRAM_TSEG_OPEN);
-	pci_probe_driver(a3c90x_driver);
 	lwip_init();
+	pci_probe_driver(a3c90x_driver);
 }
