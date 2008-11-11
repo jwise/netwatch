@@ -45,49 +45,49 @@ void eth_poll()
 		tcp_tmr();
 	ticks++;
 
-	if (!_nic->poll(_nic, 0))
-		return;
-	
-	_nic->packet = pkt;
-	_nic->poll(_nic, 1);
-	
-	len = _nic->packetlen;
-
-	outputf("NIC: Packet: %d bytes", len);
+	if (_nic->poll(_nic, 0))
+	{
+		_nic->packet = pkt;
+		_nic->poll(_nic, 1);
 		
-	p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
-	if (p == NULL)
-	{
-		outputf("NIC: out of memory for packet?");
-		LINK_STATS_INC(link.memerr);
-		LINK_STATS_INC(link.drop);
-		return;
-	}
-	
-	for(q = p; q != NULL; q = q->next)
-	{
-		memcpy(q->payload, pkt+pos, q->len);
-		pos += q->len;
-	}
-
-	LINK_STATS_INC(link.recv);
-	
-	ethhdr = p->payload;
-
-	switch (htons(ethhdr->type)) {
-	case ETHTYPE_IP:
-	case ETHTYPE_ARP:
-		if (_netif.input(p, &_netif) != ERR_OK)
+		len = _nic->packetlen;
+		
+		outputf("NIC: Packet: %d bytes", len);
+			
+		p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
+		if (p == NULL)
 		{
-			LWIP_DEBUGF(NETIF_DEBUG, ("netdev_input: IP input error\n"));
-			pbuf_free(p);
+			outputf("NIC: out of memory for packet?");
+			LINK_STATS_INC(link.memerr);
+			LINK_STATS_INC(link.drop);
+			return;
 		}
-		break;
-
-	default:
-		outputf("Unhandled packet type %04x input", ethhdr->type);
-		pbuf_free(p);
-		break;
+	
+		for(q = p; q != NULL; q = q->next)
+		{
+			memcpy(q->payload, pkt+pos, q->len);
+			pos += q->len;
+		}
+		
+		LINK_STATS_INC(link.recv);
+		
+		ethhdr = p->payload;
+		
+		switch (htons(ethhdr->type)) {
+		case ETHTYPE_IP:
+		case ETHTYPE_ARP:
+			if (_netif.input(p, &_netif) != ERR_OK)
+			{
+				LWIP_DEBUGF(NETIF_DEBUG, ("netdev_input: IP input error\n"));
+				pbuf_free(p);
+			}
+			break;
+			
+		default:
+			outputf("Unhandled packet type %04x input", ethhdr->type);
+			pbuf_free(p);
+			break;
+		}
 	}
 }
 

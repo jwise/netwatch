@@ -13,5 +13,6 @@
 
 #define MEM_SIZE	65536
 #define TCP_SND_BUF     2048
+#define TCP_MSS         2048
 
 #endif

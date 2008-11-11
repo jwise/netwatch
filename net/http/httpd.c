@@ -84,6 +84,8 @@ send_data(struct tcp_pcb *pcb, struct http_state *hs)
     len = hs->left;
     LWIP_ASSERT((len == hs->left), "hs->left did not fit into u16_t!");
   }
+  
+  outputf("send_data trying %d bytes", len);
 
   do {
     err = tcp_write(pcb, hs->file, len, 0);

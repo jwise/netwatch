@@ -4,8 +4,8 @@ static const unsigned char data_404_html[] =
   "</html>";
 
 static const unsigned char data_index_html[] =
-  "<html><head><title>NetWatch!</title></head>"
-  "<body><h1>NetWatch!</h1><iframe src=\"registers.html\" height=300></body>"
+  "<html><head><title>NetWatch</title></head>"
+  "<body><h1>NetWatch</h1><iframe src=\"registers.html\" height=100 width=600 /></body>"
   "</html>";
 
 const struct fsdata_file file_404_html[] = {{NULL, "/404.html", data_404_html, sizeof(data_404_html)}};
