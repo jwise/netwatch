@@ -40,6 +40,8 @@ OBJS =	../ich2/smi.o \
 	../pci/pci-raw.o \
 	../pci/pci-bother.o \
 	../net/net.o \
+	../net/http/fs.o \
+	../net/http/httpd.o \
 	../net/3c90x.o \
 	../lib/minilib.o \
 	../lib/doprnt.o \

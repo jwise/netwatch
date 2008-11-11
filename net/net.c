@@ -154,8 +154,11 @@ int eth_register(struct nic *nic)
 
 void eth_init()
 {
+	extern void httpd_init();
+	
 	/* Required for DMA to work. :( */
 	smram_tseg_set_state(SMRAM_TSEG_OPEN);
 	lwip_init();
 	pci_probe_driver(a3c90x_driver);
+	httpd_init();
 }

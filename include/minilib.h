@@ -8,6 +8,7 @@ extern void memset(void *dest, int data, int bytes);
 extern void memmove(void *dest, void *src, int bytes);
 extern int memcmp(const char *a2, const char *a1, int bytes);
 extern int strcmp(const char *a2, const char *a1);
+extern int strncmp(const char *a2, const char *a1, int n);
 extern int strlen(const char *c);
 extern void strcpy(char *a2, const char *a1);
 extern void puts(const char *c);

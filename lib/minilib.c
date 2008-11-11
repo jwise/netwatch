@@ -50,6 +50,16 @@ int strcmp (const char *a2, const char *a1) {
 	}
 }
 
+int strncmp (const char *a2, const char *a1, int n) {
+	while (n--) {
+		if (*a2 != *a1) return 1;
+		if (*a2 == 0) return 0;
+		a1++;
+		a2++;
+	}
+	return 0;
+}
+
 int strlen(const char *c)
 {
 	int l = 0;
