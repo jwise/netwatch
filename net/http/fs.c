@@ -34,6 +34,9 @@
 #include "fsdata.h"
 #include "fsdata.c"
 #include <io.h>
+#include <minilib.h>
+#include <paging.h>
+#include <output.h>
 
 /*-----------------------------------------------------------------------------------*/
 
@@ -67,6 +70,50 @@ void handle_regs(struct fs_file *file)
   file->len = strlen(buf)-1;
 }
 
+void handle_backtrace(struct fs_file *file)
+{
+  static unsigned char buf[2048];
+  static unsigned char buf2[64];
+  int i = 10;
+  unsigned long *pebp, *peip;
+  unsigned long ebp;
+  unsigned long cr3;
+  
+  strcpy(buf, "<html><head><title>Backtrace</title></head><body><tt><pre>");
+  ebp = *(unsigned long *)0xAFFE4;
+  cr3 = *(unsigned long *)0xAFFF8;
+  
+  sprintf(buf2, "0x%08x, from\n", *(unsigned long*)0xAFFF0);
+  strcat(buf, buf2);
+  
+  /* I never thought I'd do this again. */
+  while ((peip = demap(cr3, ebp+4)) != 0x0 && i--)
+  {
+    sprintf(buf2, "0x%08x, from\n", *peip);
+    strcat(buf, buf2);
+    pebp = demap(cr3, ebp);
+    if (!pebp)
+    {
+      strcat(buf, "&lt;unreadable %ebp&gt;\n");
+      break;
+    }
+    if (ebp >= *pebp && *pebp)
+    {
+      strcat(buf, "&lt;recursive %ebp&gt;\n");
+      break;
+    }
+    ebp = *pebp;
+  }
+  if (i == -1)
+    strcat(buf, "...\n");
+  else
+    strcat(buf, "&lt;root&gt;");
+  strcat(buf, "</pre></tt></body></html>");
+  
+  file->data = buf;
+  file->len = strlen(buf)-1;
+}
+
 void handle_reboot(struct fs_file *file)
 {
   outb(0xCF9, 0x4);
@@ -85,6 +132,11 @@ fs_open(const char *name, struct fs_file *file)
   if (!strcmp(name, "/registers.html"))
   {
     handle_regs(file);
+    return 1;
+  }
+  if (!strcmp(name, "/backtrace.html"))
+  {
+    handle_backtrace(file);
     return 1;
   }
   if (!strcmp(name, "/reboot"))

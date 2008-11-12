@@ -5,8 +5,11 @@ static const unsigned char data_404_html[] =
 
 static const unsigned char data_index_html[] =
   "<html><head><title>NetWatch</title></head>"
-  "<body><h1>NetWatch</h1><iframe src=\"registers.html\" height=100 width=600></iframe><form action=reboot type=post><input type=submit value=\"Reboot!\"></form></body>"
-  "</html>";
+  "<body><h1>NetWatch</h1>"
+  "<iframe src=\"registers.html\" height=100 width=600></iframe><br>"
+  "<iframe src=\"backtrace.html\" height=250 width=150></iframe>"
+  "<form action=reboot type=post><input type=submit value=\"Reboot!\"></form>"
+  "</body></html>";
 
 const struct fsdata_file file_404_html[] = {{NULL, "/404.html", data_404_html, sizeof(data_404_html)}};
 const struct fsdata_file file_index_html[] = {{file_404_html, "/index.html", data_index_html, sizeof(data_index_html)}};

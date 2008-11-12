@@ -40,6 +40,8 @@ static unsigned long *pd;
 
 extern int _bss, _bssend, _end;
 
+static unsigned long curmapped = 0xFFFFFFFF;
+
 unsigned long v2p(void *virt)
 {
 	unsigned long _virt = (unsigned long)virt;
@@ -51,6 +53,11 @@ unsigned long v2p(void *virt)
 		return _virt;
 	if (_virt >= 0x200000 && _virt < 0x300000)
 		return _virt - 0x200000 + /* XXX */ 0x1FF82000;
+	if (_virt >= 0x1F0000 && _virt < 0x1F2000)
+		return _virt - 0x1F0000 + 0x1FF80000;
+	if ((_virt & ~0xFFF) == 0x4000)
+		return _virt - 0x4000 + curmapped;
+	
 	outputf("WARNING: v2p(%08x)", _virt);
 	return 0xFFFFFFFF;
 }
@@ -62,14 +69,21 @@ void *p2v(unsigned long phys)
 	
 	if (phys >= 0xA0000 && phys < 0xC0000)
 		return (void*)phys;
-	if (phys >= 0x1FF80000 && phys < 0x20000000)
+	if (phys >= 0x1FF82000 && phys < 0x20000000)
 		return (void*)(phys - 0x1FF82000 + 0x200000);
-	outputf("WARNING: p2v(%08x)", phys);
-	return (void *)0xFFFFFFFF;
+	if (phys >= 0x1FF80000 && phys < 0x1FF82000)
+		return (void*)(phys - 0x1FF80000 + 0x1F0000);
+		
+	if ((phys & ~0xFFF) != curmapped)	/* If it's not mapped, map it in. */
+	{
+		curmapped = phys & ~0xFFF;
+		addmap(0x4000, curmapped);
+		asm volatile("invlpg 0x4000");
+	}
+	return (void*)(0x4000 + (phys & 0xFFF));
 }
 
-
-inline int pt_addmap(unsigned long *pd, unsigned long vaddr, unsigned long paddr)
+int addmap(unsigned long vaddr, unsigned long paddr)
 {
 	unsigned long pde = ((unsigned long *)p2v((unsigned long)pd))[PDE_FOR(vaddr)];
 	unsigned long *pt;
@@ -83,13 +97,28 @@ inline int pt_addmap(unsigned long *pd, unsigned long vaddr, unsigned long paddr
 	return 0;
 }
 
-static void * pt_setup(int tseg_start, int tseg_size) {
+void *demap(unsigned long client_pd, unsigned long vaddr)
+{
+	unsigned long pde = ((unsigned long *)p2v(client_pd))[PDE_FOR(vaddr)];
+	unsigned long pte;
+	
+	if (!(pde & PTE_PRESENT))
+		return (void*)0x0;
+	pte = ((unsigned long *)p2v(ADDR_12_MASK(pde)))[PTE_FOR(vaddr)];
+	if (!(pte & PTE_PRESENT))
+		return (void*)0x0;
+	return p2v((pte & ~0xFFF) + (vaddr & 0xFFF));
+}
+
+static void pt_setup(int tseg_start, int tseg_size) {
 	int i;
 
 	/* The page directory and page table live at TSEG and TSEG + 0x1000,
 	 * respectively. */
 	unsigned long *pagedirectory = (unsigned long *) tseg_start;
 	unsigned long *pagetable = (unsigned long *) (tseg_start + 0x1000);
+	
+	pd = pagedirectory;
 
 	/* Clear out the page directory except for one entry pointing to the
 	 * page table, and clear the page table entirely. */
@@ -102,18 +131,20 @@ static void * pt_setup(int tseg_start, int tseg_size) {
 
 	/* Map 0x0A0000:0x0BFFFF to itself. */
 	for (i = 0; i < 32; i++)
-		pt_addmap(pagedirectory, 0xA0000 + i * 0x1000, 0xA0000 + i * 0x1000);
+		addmap(0xA0000 + i * 0x1000, 0xA0000 + i * 0x1000);
 
-	/* Map 0x200000:0x300000 to TSEG */
+	/* Map 0x200000:0x300000 to TSEG data */
 	for (i = 0; i < 256; i++)
-		pt_addmap(pagedirectory, 0x200000 + i * 0x1000, tseg_start + 0x2000 + i * 0x1000);
+		addmap(0x200000 + i * 0x1000, tseg_start + (i + 2) * 0x1000);
 
 	/* Map 0x300000:0x400000 to 0x200000, so we can copy our code out of
 	 * RAM the first time around */
 	for (i = 0; i < 256; i++)
-		pt_addmap(pagedirectory, 0x300000 + i * 0x1000, 0x200000 + i * 0x1000);
+		addmap(0x300000 + i * 0x1000, 0x200000 + i * 0x1000);
 
-	return pagedirectory;
+	/* Map 0x1F0000:0x1F2000 to TSEG paging info */
+	for (i = 0; i < 2; i++)
+		addmap(0x1F0000 + i * 0x1000, tseg_start + i * 0x1000);
 }
 
 void c_entry(void)
@@ -122,7 +153,7 @@ void c_entry(void)
 
 	outb(0x80, 0x01);	
 	if (!initialized)
-		pd = pt_setup(0x1FF80000, 0x80000);
+		pt_setup(0x1FF80000, 0x80000);
 	outb(0x80, 0x02);
 		
 	/* Enable paging. */

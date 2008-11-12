@@ -10,6 +10,7 @@ extern int memcmp(const char *a2, const char *a1, int bytes);
 extern int strcmp(const char *a2, const char *a1);
 extern int strncmp(const char *a2, const char *a1, int n);
 extern int strlen(const char *c);
+extern void strcat(char *dest, char *src);
 extern void strcpy(char *a2, const char *a1);
 extern void puts(const char *c);
 extern void tohex(char *s, unsigned long l);

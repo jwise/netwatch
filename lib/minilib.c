@@ -75,6 +75,15 @@ void strcpy(char *a2, const char *a1)
 	} while (*(a1++));
 }
 
+void strcat(char *dest, char *src)
+{
+	while (*dest)
+		dest++;
+	while (*src)
+		*(dest++) = *(src++);
+	*(dest++) = *(src++);
+}
+
 void puts(const char *c)
 {
 	putbytes(c, strlen(c));
