@@ -22,7 +22,7 @@ void smi_entry(void)
 
 	counter++;
 	sprintf(statstr, "NetWatch! %08x %08x", smi_status(), counter);
-	strblit(statstr, 0, 0);
+	strblit(statstr, 0, 0, 0);
 	
 	serial_init();
 	eth_poll();

@@ -40,7 +40,7 @@ static char * vga_base()
 	);
 }
 
-void strblit(char *src, int row, int col)
+void strblit(char *src, int row, int col, int fill)
 {
 	char *destp = vga_base() + row * 80 * 2 + col * 2;
 	outb(0x80, 0x3C);
@@ -54,7 +54,15 @@ void strblit(char *src, int row, int col)
 	{
 		*(destp++) = *(src++);
 		*(destp++) = COLOR;
+		col++;
 	}
+	if (fill)
+		while (col < 80)
+		{
+			*(destp++) = ' ';
+			*(destp++) = COLOR;
+			col++;
+		}
 
 	outb(0x80, 0x3F);
 	smram_restore_state(old_state);
@@ -63,24 +71,10 @@ void strblit(char *src, int row, int col)
 
 void outlog()
 {
-	int y, x;
-	char *basep = vga_base();
+	int y;
 
-	smram_state_t old_state = smram_save_state();
-
-	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
-
-	for (y = 0; y < LOG_ONSCREEN; y++)
-		for (x = 40; x < 80; x++)
-		{
-			basep[y*80*2+x*2] = ' ';
-			basep[y*80*2+x*2+1] = 0x1F;
-		}
-
-	smram_restore_state(old_state);
-	
 	for (y = -LOG_ONSCREEN; y < 0; y++)
-		strblit(logents[(y + prodptr) % LOGLEN], y + LOG_ONSCREEN, 40);
+		strblit(logents[(y + prodptr) % LOGLEN], y + LOG_ONSCREEN, 40, 1);
 }
 
 void dolog(const char *s)
