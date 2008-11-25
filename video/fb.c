@@ -1,3 +1,3 @@
 #include <fb.h>
 
-struct fbdevice *fb;
+struct fbdevice *fb = 0;

@@ -3,7 +3,7 @@
 
 void vga_flush_imm(int enb);
 
-void strblit(char *src, int row, int col);
+void strblit(char *src, int row, int col, int fill);
 
 void dolog(char *s);
 void dologf(char *s, ...);

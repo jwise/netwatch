@@ -12,7 +12,7 @@ static struct fbdevice tnt2_fb = {
 
 static unsigned int vgard(unsigned char a)
 {
-	outb(a, 0x3D4);
+	outb(0x3D4, a);
 	return (unsigned int)inb(0x3D5);
 }
 
@@ -22,7 +22,7 @@ static void tnt2_getvmode(void *priv)
 	tnt2_fb.curmode.yres = (vgard(0x12) | (vgard(0x7) & 2) << 7 | (vgard(0x7) & 0x40) << 3) + 1;
 	switch (vgard(0x28))
 	{
-	case 4:
+	case 3:
 		tnt2_fb.curmode.format = FB_RGB888;
 		tnt2_fb.curmode.bytestride = 4;
 		tnt2_fb.curmode.text = 0;
@@ -31,7 +31,8 @@ static void tnt2_getvmode(void *priv)
 		tnt2_fb.curmode.text = 1;
 		break;
 	default:
-		outputf("Unknown TNT2 format %d", vgard(0x28));
+		tnt2_fb.curmode.text = 1;
+		outputf("Unknown TNT2 format %x", vgard(0x28));
 		break;
 	}
 }
