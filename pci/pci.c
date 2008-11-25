@@ -115,7 +115,7 @@ static int _probefn(pci_dev_t *dev, void *d)
 	return 0;
 }
 
-int pci_probe_driver(pci_driver_t driver)
+int pci_probe_driver(pci_driver_t *driver)
 {
-	return pci_probe(_probefn, &driver);
+	return pci_probe(_probefn, driver);
 }

@@ -43,6 +43,9 @@ OBJS =	../ich2/smi.o \
 	../net/http/fs.o \
 	../net/http/httpd.o \
 	../net/3c90x.o \
+	../video/tnt2.o \
+	../video/fb.o \
+	drivers.o \
 	../lib/minilib.o \
 	../lib/doprnt.o \
 	../lib/sprintf.o \

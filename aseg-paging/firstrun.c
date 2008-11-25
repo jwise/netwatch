@@ -13,8 +13,11 @@ extern void timer_handler(smi_event_t ev);
 extern void kbc_handler(smi_event_t ev);
 extern void gbl_rls_handler(smi_event_t ev);
 
+extern pci_driver_t *drivers[];
+
 void smi_init() {
 	smram_state_t smram;
+	pci_driver_t **driver;
 	
 	smram = smram_save_state();
 	smram_tseg_set_state(SMRAM_TSEG_OPEN);
@@ -31,6 +34,15 @@ void smi_init() {
 	smi_disable();
 	
 	eth_init();
+	
+	/* After everything is initialized, load drivers. */
+	for (driver = drivers; *driver; driver++)
+	{
+		outputf("Probing driver: %s", (*driver)->name);
+		if (pci_probe_driver(*driver))
+			output("Found a card");
+	}
+	outputf("Driver probe complete");
 
 	smi_register_handler(SMI_EVENT_FAST_TIMER, timer_handler);
 	smi_enable_event(SMI_EVENT_FAST_TIMER);

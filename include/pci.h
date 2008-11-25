@@ -55,6 +55,6 @@ typedef struct pci_driver {
 	int id_count;
 } pci_driver_t;
 
-int pci_probe_driver(pci_driver_t driver);
+int pci_probe_driver(pci_driver_t *driver);
 
 #endif
