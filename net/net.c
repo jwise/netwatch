@@ -18,6 +18,8 @@
 #include "netif/etharp.h"
 #include "netif/ppp_oe.h"
 
+#include "rfb.h"
+
 static struct nic *_nic = 0x0;
 static struct netif _netif;
 
@@ -160,4 +162,7 @@ void eth_init()
 	smram_tseg_set_state(SMRAM_TSEG_OPEN);
 	lwip_init();
 	httpd_init();
+/*
+	rfb_init();
+*/
 }

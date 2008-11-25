@@ -43,6 +43,7 @@ OBJS =	../ich2/smi.o \
 	../net/http/fs.o \
 	../net/http/httpd.o \
 	../net/3c90x.o \
+	../net/rfb.o \
 	../video/tnt2.o \
 	../video/fb.o \
 	drivers.o \
