@@ -34,7 +34,6 @@ void smi_entry(void)
 	/* wee! */
 	if (fb && !fb->curmode.text)
 	{
-		output("not text! nope nope nope");
 		int ass[][2] = {
 			      {1,0},       {4,0},{5,0},{6,0}, {8,0},{9,0},{10,0},
 			{0,1},      {2,1}, {4,1},             {8,1},
@@ -47,13 +46,20 @@ void smi_entry(void)
 		for (p = 0; ass[p][0] != -1; p++)
 		{
 			int x, y;
+			unsigned long lasta = 0;
+			unsigned long *lastmap;
 			for (y = 0; y < 8; y++)
 				for (x = 0; x < 8; x++)
 				{
 					unsigned long a =
 						(unsigned long) fb->fbaddr +
 						((y+ass[p][1]*8) * fb->curmode.xres + ass[p][0]*8 + x) * 4;
-					*(unsigned long *)p2v(a) = 0xFF0000FF;
+					if ((a & ~4095) != (lasta & ~4095))
+					{
+						lastmap = (unsigned long *)((unsigned long)p2v(a) & ~4095);
+						lasta = a;
+					}
+					lastmap[(a & 4095) / 4] = 0xFF0000FF;
 				}
 		}
 	}
