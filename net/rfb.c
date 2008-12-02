@@ -14,7 +14,7 @@
 #define POINTER_EVENT		5
 #define CLIENT_CUT_TEXT		6
 
-#define RFB_BUF_SIZE	2048
+#define RFB_BUF_SIZE	64
 
 struct pixel_format {
 	uint8_t bpp;
@@ -91,29 +91,31 @@ struct rfb_state {
 	char next_update_incremental;
 	struct fb_update_req client_interest_area;
 
-	int needs_updated;
+	uint8_t needs_updated;
+	uint8_t sending;
 };
 
 static struct server_init_message server_info;
 
 static void init_server_info() {
-	server_info.name_length = 8;
+	server_info.name_length = htonl(8);
 	memcpy(server_info.name_string, "NetWatch", 8);
 }
 
 static void update_server_info() {
 	if (fb != NULL) {
-		server_info.fb_width = fb->curmode.xres;
-		server_info.fb_height = fb->curmode.yres;
+		outputf("RFB: setting fmt %d", fb->curmode.format);
+		server_info.fb_width = htons(fb->curmode.xres);
+		server_info.fb_height = htons(fb->curmode.yres);
 		switch (fb->curmode.format) {
 		case FB_RGB888:
 			server_info.fmt.bpp = 32;
 			server_info.fmt.depth = 24;
 			server_info.fmt.big_endian = 0;
 			server_info.fmt.true_color = 1;
-			server_info.fmt.red_max = 255;
-			server_info.fmt.green_max = 255;
-			server_info.fmt.blue_max = 255;
+			server_info.fmt.red_max = htons(255);
+			server_info.fmt.green_max = htons(255);
+			server_info.fmt.blue_max = htons(255);
 			server_info.fmt.red_shift = 0;
 			server_info.fmt.green_shift = 8;
 			server_info.fmt.blue_shift = 16;
@@ -122,7 +124,13 @@ static void update_server_info() {
 			outputf("RFB: unknown fb fmt %d", fb->curmode.format);
 			break;
 		}
+	} else {
+		outputf("RFB: fb null");
 	}
+}
+
+static void start_send(struct tcp_pcb *pcb, struct rfb_state *state) {
+	/* ... */
 }
 
 static void close_conn(struct tcp_pcb *pcb, struct rfb_state *state) {
@@ -140,6 +148,11 @@ enum fsm_result {
 };
 
 static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
+	int i;
+	int pktsize;
+
+	outputf("RFB FSM: st %d rp %d wp %d", state->state, state->readpos,
+		state->writepos);
 
 	switch(state->state) {
 	case ST_BEGIN:
@@ -165,24 +178,32 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 		state->readpos += 12;
 		state->state = ST_CLIENTINIT;
 
-		/* We support one security type, currently "none". */
+		/* We support one security type, currently "none".
+		 * Send that and SecurityResult. */
 		if (state->version >= 7) {
-			tcp_write(pcb, "\x01\x01", 2, 0);
+			tcp_write(pcb, "\x01\x01\x00\x00\x00\x00", 6, 0);
 		} else {
-			tcp_write(pcb, "\x01", 1, 0);
+			tcp_write(pcb, "\x01\x00\x00\x00\x00", 5, 0);
 		}
 
-		/* ... and go right ahead and send SecurityResult message. */
-		tcp_write(pcb, "\x00\x00\x00\x01", 4, 0);
 		tcp_output(pcb);
 
 		return OK;
 
 	case ST_CLIENTINIT:
-		if (state->writepos < 1) return NEEDMORE;
-		state->readpos += 1;
+		if (state->version >= 7) {
+			/* Ignore the security type and ClientInit */
+			if (state->writepos < 2) return NEEDMORE;
+			state->readpos += 2;
+		} else {
+			/* Just ClientInit */
+			if (state->writepos < 1) return NEEDMORE;
+			state->readpos += 1;
+		}
+
 		state->state = ST_MAIN;
 
+		outputf("RFB: Sending server info", state->version);
 		tcp_write(pcb, &server_info, sizeof(server_info), 0);
 		tcp_output(pcb);
 
@@ -191,12 +212,14 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 	case ST_MAIN:
 		if (state->writepos < 1) return NEEDMORE;
 
+		outputf("RFB: cmd %d", state->data[0]);
 		switch (state->data[0]) {
 
 		case SET_PIXEL_FORMAT:
 			/* SetPixelFormat */
 			if (state->writepos < (sizeof(struct pixel_format) + 4))
 				return NEEDMORE;
+			outputf("RFB: SetPixelFormat");
 /*
 			struct pixel_format * new_fmt =
 				(struct pixel_format *)(&state->data[4]);
@@ -211,18 +234,24 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 
 			struct set_encs_req * req = (struct set_encs_req *)state->data;
 
-			if (state->writepos < (sizeof(struct set_encs_req)
-			                       + 4 * req->num))
-				return NEEDMORE;
+			pktsize = sizeof(struct set_encs_req) + (4 * ntohs(req->num));
 
-			/* XXX ... */
+			outputf("RFB: SetEncodings [%d]", ntohs(req->num));
+			if (state->writepos < pktsize) return NEEDMORE;
 
-			state->readpos += (4 * req->num) + sizeof(struct set_encs_req);
+			for (i = 0; i < ntohs(req->num); i++) {
+				outputf("RFB: Encoding: %d", ntohl(req->encodings[i]));
+				/* XXX ... */
+
+			}
+
+			state->readpos += pktsize;
 			return OK;
 
 		case FB_UPDATE_REQUEST:
 			if (state->writepos < sizeof(struct fb_update_req))
 				return NEEDMORE;
+			outputf("RFB: UpdateRequest");
 
 			state->needs_updated = 1;
 			memcpy(&state->client_interest_area, state->data,
@@ -234,6 +263,7 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 		case KEY_EVENT:
 			if (state->writepos < sizeof(struct key_event_pkt))
 				return NEEDMORE;
+			outputf("RFB: Key");
 
 			/* XXX stub */
 
@@ -243,6 +273,7 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 		case POINTER_EVENT:
 			if (state->writepos < sizeof(struct pointer_event_pkt))
 				return NEEDMORE;
+			outputf("RFB: Pointer");
 
 			/* XXX stub */
 
@@ -252,6 +283,7 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 		case CLIENT_CUT_TEXT:
 			if (state->writepos < sizeof(struct text_event_pkt))
 				return NEEDMORE;
+			outputf("RFB: Cut Text");
 
 			struct text_event_pkt * pkt =
 				(struct text_event_pkt *)state->data;
@@ -302,16 +334,26 @@ static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
 
 	outputf("RFB: Processing %d", p->tot_len);
 	pbuf_copy_partial(p, state->data + state->writepos, p->tot_len, 0);
+	state->writepos += p->tot_len;
+
 	tcp_recved(pcb, p->tot_len);
 	pbuf_free(p);
 
 	while (1) {
 		switch (recv_fsm(pcb, state)) {
 		case NEEDMORE:
+			outputf("RFB FSM: blocking");
 			/* Need more data */
 			return ERR_OK;
 
 		case OK:
+			outputf("RFB FSM: ok");
+
+			/* Might as well send now... */
+			if (state->needs_updated && !state->sending) {
+				start_send(pcb, state);
+			}
+
 			if (state->readpos == state->writepos) {
 				state->readpos = 0;
 				state->writepos = 0;
@@ -338,6 +380,12 @@ static err_t rfb_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
 	LWIP_UNUSED_ARG(err);
 
 	state = (struct rfb_state *)mem_malloc(sizeof(struct rfb_state));
+
+	state->state = ST_BEGIN;
+	state->readpos = 0;
+	state->writepos = 0;
+	state->needs_updated = 0;
+	state->sending = 0;
 
 	/* XXX: update_server_info() should be called from the 64ms timer, and deal
 	 * with screen resizes appropriately. */

@@ -162,7 +162,7 @@ void eth_init()
 	smram_tseg_set_state(SMRAM_TSEG_OPEN);
 	lwip_init();
 	httpd_init();
-/*
+
 	rfb_init();
-*/
+
 }
