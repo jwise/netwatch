@@ -91,7 +91,7 @@ struct rfb_state {
 	char next_update_incremental;
 	struct fb_update_req client_interest_area;
 
-	uint8_t needs_updated;
+	uint8_t update_allowed;
 	uint8_t sending;
 };
 
@@ -253,7 +253,7 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 				return NEEDMORE;
 			outputf("RFB: UpdateRequest");
 
-			state->needs_updated = 1;
+			state->update_allowed = 1;
 			memcpy(&state->client_interest_area, state->data,
 			       sizeof(struct fb_update_req)); 
 
@@ -350,7 +350,7 @@ static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
 			outputf("RFB FSM: ok");
 
 			/* Might as well send now... */
-			if (state->needs_updated && !state->sending) {
+			if (state->update_allowed && !state->sending) {
 				start_send(pcb, state);
 			}
 
@@ -384,7 +384,7 @@ static err_t rfb_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
 	state->state = ST_BEGIN;
 	state->readpos = 0;
 	state->writepos = 0;
-	state->needs_updated = 0;
+	state->update_allowed = 0;
 	state->sending = 0;
 
 	/* XXX: update_server_info() should be called from the 64ms timer, and deal
