@@ -480,8 +480,10 @@ a3c90x_transmit(unsigned int size, const char *pkt)
 
 	if (stillwaiting)
 	{
+		outputf("Waiting for network completion...");
 		while (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE) && oneshot_running())
 			;
+		outputf("Done");
 		if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE))
 		{
 			outputf("3c90x: tx timeout? txstat %02x", inb(INF_3C90X.IOAddr + regTxStatus_b));
