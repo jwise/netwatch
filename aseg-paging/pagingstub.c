@@ -61,17 +61,19 @@ unsigned long v2p(void *virt)
 	if (!paging_enb)
 		return _virt;
 	
-	if (_virt >= 0xA0000 && _virt < 0xC0000)
-		return _virt;
-	if (_virt >= 0x200000 && _virt < 0x300000)
-		return _virt - 0x200000 + /* XXX */ 0x1FF82000;
-	if (_virt >= 0x1F0000 && _virt < 0x1F2000)
-		return _virt - 0x1F0000 + 0x1FF80000;
-	if ((_virt & ~0xFFF) == 0x4000)
-		return _virt - 0x4000 + curmapped;
+	unsigned long pde = ((unsigned long *)p2v((unsigned long)pd))[PDE_FOR(_virt)];
+	unsigned long pte;
 	
-	outputf("WARNING: v2p(%08x)", _virt);
-	return 0xFFFFFFFF;
+	if (!(pde & PTE_PRESENT))
+		return 0xFFFFFFFF;
+	
+	if (pde & PDE_PAGE_SIZE)
+		return ADDR_12_MASK(pde) + (_virt & 0x3FFFFF);
+	
+	pte = ((unsigned long *)p2v(ADDR_12_MASK(pde)))[PTE_FOR(_virt)];
+	if (!(pte & PTE_PRESENT))
+		return 0xFFFFFFFF;
+	return (pte & ~0xFFF) + (_virt & 0xFFF);
 }
 
 void *p2v(unsigned long phys)
