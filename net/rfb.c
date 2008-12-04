@@ -169,7 +169,7 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 	case SST_NEEDS_UPDATE:
 		outputf("RFB send: sending header");
 		/* Send a header */
-		state->frame_bytes = fb->curmode.xres * fb->curmode.yres * 3; /* XXX */
+		state->frame_bytes = fb->curmode.xres * fb->curmode.yres * fb->curmode.bytestride;
 		hdr.msgtype = 0;
 		hdr.nrects = htons(1);
 		hdr.xpos = htons(0);
@@ -186,33 +186,46 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 		/* FALL THROUGH */
 
 	case SST_SENDING:
-		left = state->frame_bytes - state->update_pos;
 
-		if (left > tcp_sndbuf(pcb)) {
-			sndlength = tcp_sndbuf(pcb);
-		} else {
-			sndlength = left;
-		}
+		while (1) {
+			left = state->frame_bytes - state->update_pos;
 
-		do {
-			err = tcp_write(pcb, fb->fbaddr + state->update_pos, sndlength, 0);
-			if (err == ERR_MEM) {
-				outputf("RFB: ERR_MEM sending %d", sndlength);
-				sndlength /= 2;
+			if (left == 0) {
+				state->send_state = SST_IDLE;
+				break;
 			}
-		} while (err == ERR_MEM && sndlength > 1);
 
-		if (err == ERR_OK) {
-			outputf("RFB: sent %d", sndlength);
+			if (left > tcp_mss(pcb)) {
+				sndlength = tcp_mss(pcb);
+			} else {
+				sndlength = left;
+			}
+
+			do {
+				err = tcp_write(pcb, fb->fbaddr + state->update_pos, sndlength, 0);
+				if (err == ERR_MEM) {
+					outputf("RFB: ERR_MEM sending %d", sndlength);
+					sndlength /= 2;
+				}
+			} while (err == ERR_MEM && sndlength > 1);
+
+			if (err == ERR_OK) {
+				outputf("RFB: attempting send %d", sndlength);
+			} else {
+				outputf("RFB: send error %d", err);
+				break;
+			}
+
+			if (tcp_output(pcb) != ERR_OK) {
+				outputf("RFB: tcp_output has had enough");
+				break;
+			}
+
 			state->update_pos += sndlength;
-		} else {
-			outputf("RFB: send error %d", err);
-		}
 
-		tcp_output(pcb);
-
-		if (state->update_pos == state->frame_bytes) {
-			state->send_state = SST_IDLE;
+			if (tcp_sndbuf(pcb) == 0) {
+				break;
+			}
 		}
 
 		break;
