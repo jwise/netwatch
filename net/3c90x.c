@@ -481,20 +481,6 @@ a3c90x_transmit(struct pbuf *p)
 	static unsigned int stillwaiting = 0;
 	unsigned int n, len;
 
-	if (stillwaiting)
-	{
-		while (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE) && oneshot_running())
-			;
-		if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE))
-		{
-			outputf("3c90x: tx timeout? txstat %02x", inb(INF_3C90X.IOAddr + regTxStatus_b));
-			outputf("3c90x: Gen sts %04x", inw(INF_3C90X.IOAddr + regCommandIntStatus_w));
-		}
-		status = inb(INF_3C90X.IOAddr + regTxStatus_b);
-		outb(INF_3C90X.IOAddr + regTxStatus_b, 0x00);
-		stillwaiting = 0;
-	}
-
 	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 2 /* Stall download */);
 
 	/** Setup the DPD (download descriptor) **/
@@ -528,6 +514,19 @@ a3c90x_transmit(struct pbuf *p)
 
 	oneshot_start_ms(10);
 	stillwaiting = 1;
+	if (stillwaiting)
+	{
+		while (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE) && oneshot_running())
+			;
+		if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE))
+		{
+			outputf("3c90x: tx timeout? txstat %02x", inb(INF_3C90X.IOAddr + regTxStatus_b));
+			outputf("3c90x: Gen sts %04x", inw(INF_3C90X.IOAddr + regCommandIntStatus_w));
+		}
+		status = inb(INF_3C90X.IOAddr + regTxStatus_b);
+		outb(INF_3C90X.IOAddr + regTxStatus_b, 0x00);
+		stillwaiting = 0;
+	}
 		
 #if 0		
 	/** successful completion (sans "interrupt Requested" bit) **/
