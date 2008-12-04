@@ -28,8 +28,11 @@ void smi_entry(void)
         	fb->getvmode(fb->priv);
 
 	counter++;
-	sprintf(statstr, "NetWatch! %08x %08x", smi_status(), counter);
-	strblit(statstr, 0, 0, 0);
+	if (!fb || fb->curmode.text)
+	{
+        	sprintf(statstr, "NetWatch! %08x %08x", smi_status(), counter);
+		strblit(statstr, 0, 0, 0);
+	}
 	
 	eth_poll();
 	

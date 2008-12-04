@@ -4,6 +4,7 @@
 #include <minilib.h>
 #include <smi.h>
 #include <pci-bother.h>
+#include <fb.h>
 #include "../net/net.h"
 #include "vga-overlay.h"
 #include "../aseg/packet.h"
@@ -114,7 +115,8 @@ void timer_handler(smi_event_t ev)
 	
 	outb(0x80, (ticks++) & 0xFF);
 	
-	outlog();
+	if (!fb || fb->curmode.text)
+		outlog();
 }
 
 void kbc_handler(smi_event_t ev)
