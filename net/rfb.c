@@ -75,6 +75,17 @@ struct text_event_pkt {
 	char text[];
 };
 
+struct update_header {
+	uint8_t msgtype;
+	uint8_t padding;
+	uint16_t nrects;
+	uint16_t xpos;
+	uint16_t ypos;
+	uint16_t width;
+	uint16_t height;
+	int32_t enctype;
+};
+
 struct rfb_state {
 	enum {
 		ST_BEGIN,
@@ -89,10 +100,18 @@ struct rfb_state {
 	int writepos;
 
 	char next_update_incremental;
+	char update_requested;
+
 	struct fb_update_req client_interest_area;
 
-	uint8_t needs_updated;
-	uint8_t sending;
+	enum {
+		SST_IDLE,
+		SST_NEEDS_UPDATE,
+		SST_SENDING
+	} send_state;
+
+	uint32_t update_pos;
+	uint32_t frame_bytes;
 };
 
 static struct server_init_message server_info;
@@ -129,8 +148,81 @@ static void update_server_info() {
 	}
 }
 
-static void start_send(struct tcp_pcb *pcb, struct rfb_state *state) {
-	/* ... */
+static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
+	struct update_header hdr;
+	int left, sndlength;
+	err_t err;
+
+	switch (state->send_state) {
+	case SST_IDLE:
+		/* Nothing to do */
+		if (state->update_requested) {
+			outputf("RFB send: update requested");
+			state->update_requested = 0;
+			state->send_state = SST_NEEDS_UPDATE;
+		} else {
+			break;
+		}
+	
+		/* potential FALL THROUGH */
+
+	case SST_NEEDS_UPDATE:
+		outputf("RFB send: sending header");
+		/* Send a header */
+		state->frame_bytes = fb->curmode.xres * fb->curmode.yres * 3; /* XXX */
+		hdr.msgtype = 0;
+		hdr.nrects = htons(1);
+		hdr.xpos = htons(0);
+		hdr.ypos = htons(0);
+		hdr.width = htons(fb->curmode.xres);
+		hdr.height = htons(fb->curmode.yres);
+		hdr.enctype = htonl(0);
+		tcp_write(pcb, &hdr, sizeof(hdr), 0);
+		tcp_output(pcb);
+
+		state->update_pos = 0;
+		state->send_state = SST_SENDING;
+
+		/* FALL THROUGH */
+
+	case SST_SENDING:
+		left = state->frame_bytes - state->update_pos;
+
+		if (left > tcp_sndbuf(pcb)) {
+			sndlength = tcp_sndbuf(pcb);
+		} else {
+			sndlength = left;
+		}
+
+		do {
+			err = tcp_write(pcb, fb->fbaddr + state->update_pos, sndlength, 0);
+			if (err == ERR_MEM) {
+				outputf("RFB: ERR_MEM sending %d", sndlength);
+				sndlength /= 2;
+			}
+		} while (err == ERR_MEM && sndlength > 1);
+
+		if (err == ERR_OK) {
+			outputf("RFB: sent %d", sndlength);
+			state->update_pos += sndlength;
+		} else {
+			outputf("RFB: send error %d", err);
+		}
+
+		tcp_output(pcb);
+
+		if (state->update_pos == state->frame_bytes) {
+			state->send_state = SST_IDLE;
+		}
+
+		break;
+	}
+}
+
+static err_t rfb_sent(void *arg, struct tcp_pcb *pcb, uint16_t len) {
+	struct rfb_state *state = arg;
+	send_fsm(pcb, state);
+	return ERR_OK;
 }
 
 static void close_conn(struct tcp_pcb *pcb, struct rfb_state *state) {
@@ -253,7 +345,7 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 				return NEEDMORE;
 			outputf("RFB: UpdateRequest");
 
-			state->needs_updated = 1;
+			state->update_requested = 1;
 			memcpy(&state->client_interest_area, state->data,
 			       sizeof(struct fb_update_req)); 
 
@@ -350,8 +442,9 @@ static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
 			outputf("RFB FSM: ok");
 
 			/* Might as well send now... */
-			if (state->needs_updated && !state->sending) {
-				start_send(pcb, state);
+			if (state->send_state == SST_IDLE
+			    && state->update_requested) {
+				send_fsm(pcb, state);
 			}
 
 			if (state->readpos == state->writepos) {
@@ -384,8 +477,8 @@ static err_t rfb_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
 	state->state = ST_BEGIN;
 	state->readpos = 0;
 	state->writepos = 0;
-	state->needs_updated = 0;
-	state->sending = 0;
+	state->update_requested = 0;
+	state->send_state = SST_IDLE;
 
 	/* XXX: update_server_info() should be called from the 64ms timer, and deal
 	 * with screen resizes appropriately. */
@@ -399,6 +492,7 @@ static err_t rfb_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
 
 	tcp_arg(pcb, state);
 	tcp_recv(pcb, rfb_recv);
+	tcp_sent(pcb, rfb_sent);
 /*
 	tcp_err(pcb, rfb_err);
 	tcp_poll(pcb, rfb_poll, 2);
