@@ -31,32 +31,6 @@ void smi_entry(void)
 	sprintf(statstr, "NetWatch! %08x %08x", smi_status(), counter);
 	strblit(statstr, 0, 0, 0);
 	
-	/* wee! */
-	if (fb && !fb->curmode.text)
-	{
-		int ass[][2] = {
-			      {1,0},       {4,0},{5,0},{6,0}, {8,0},{9,0},{10,0},
-			{0,1},      {2,1}, {4,1},             {8,1},
-			{0,2},{1,2},{2,2}, {4,2},{5,2},{6,2}, {8,2},{9,2},{10,2},
-			{0,3},      {2,3},             {6,3},             {10,3},
-			{0,4},      {2,4}, {4,4},{5,4},{6,4}, {8,4},{9,4},{10,4},
-			{-1,-1}
-		};
-		int p;
-		for (p = 0; ass[p][0] != -1; p++)
-		{
-			int x, y;
-			for (y = 0; y < 8; y++)
-				for (x = 0; x < 8; x++)
-				{
-					unsigned long *a =
-						(unsigned long*) fb->fbaddr +
-						((y+ass[p][1]*8) * fb->curmode.xres + ass[p][0]*8 + x);
-                                        *a = 0xFF0000FF;
-				}
-		}
-	}
-	
 	eth_poll();
 	
 	if (inl(0x840) & 0x1000)
