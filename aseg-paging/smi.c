@@ -46,20 +46,13 @@ void smi_entry(void)
 		for (p = 0; ass[p][0] != -1; p++)
 		{
 			int x, y;
-			unsigned long lasta = 0;
-			unsigned long *lastmap;
 			for (y = 0; y < 8; y++)
 				for (x = 0; x < 8; x++)
 				{
-					unsigned long a =
-						(unsigned long) fb->fbaddr +
-						((y+ass[p][1]*8) * fb->curmode.xres + ass[p][0]*8 + x) * 4;
-					if ((a & ~4095) != (lasta & ~4095))
-					{
-						lastmap = (unsigned long *)((unsigned long)p2v(a) & ~4095);
-						lasta = a;
-					}
-					lastmap[(a & 4095) / 4] = 0xFF0000FF;
+					unsigned long *a =
+						(unsigned long*) fb->fbaddr +
+						((y+ass[p][1]*8) * fb->curmode.xres + ass[p][0]*8 + x);
+                                        *a = 0xFF0000FF;
 				}
 		}
 	}

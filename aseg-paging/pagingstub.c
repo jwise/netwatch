@@ -23,14 +23,26 @@ void ps_switch_stack (void (*call)(), int stack);
         asm volatile("mov %%cr0, %0" : "=r" (_temp__)); \
         _temp__; \
     })
-
-
 #define set_cr3(value) \
     { \
         register unsigned int _temp__ = (value); \
         asm volatile("mov %0, %%cr3" : : "r" (_temp__)); \
      }
+
+#define get_cr4() \
+    ({ \
+        register unsigned int _temp__; \
+        asm volatile("mov %%cr4, %0" : "=r" (_temp__)); \
+        _temp__; \
+    })
+#define set_cr4(value) \
+    { \
+        register unsigned int _temp__ = (value); \
+        asm volatile("mov %0, %%cr4" : : "r" (_temp__)); \
+     }
+
 #define	CR0_PG	0x80000000
+#define CR4_PSE	0x00000010
 
 #define MAP_FLAGS	(PTE_PRESENT | PTE_READ_WRITE)
 
@@ -97,6 +109,15 @@ int addmap(unsigned long vaddr, unsigned long paddr)
 	return 0;
 }
 
+int addmap_4m(unsigned long vaddr, unsigned long paddr)
+{
+	/* PDE_PAGE_SIZE = (1 << 7) */
+	((unsigned long *)p2v((unsigned long)pd))[PDE_FOR(vaddr)] =
+		paddr | PDE_PRESENT | PDE_READ_WRITE | PDE_PAGE_SIZE;
+	
+	return 0;
+}
+
 void *demap(unsigned long client_pd, unsigned long vaddr)
 {
 	unsigned long pde = ((unsigned long *)p2v(client_pd))[PDE_FOR(vaddr)];
@@ -158,6 +179,7 @@ void c_entry(void)
 		
 	/* Enable paging. */
 	set_cr3((unsigned long)pd);
+	set_cr4(get_cr4() | CR4_PSE);	/* ITT, we 4MByte page. */ 
 	set_cr0(get_cr0() | CR0_PG);
 	outb(0x80, 0x03);
 	paging_enb = 1;

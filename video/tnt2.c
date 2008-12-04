@@ -3,6 +3,7 @@
 #include <pci.h>
 #include <output.h>
 #include <fb.h>
+#include <paging.h>
 
 static void tnt2_getvmode(void *priv);
 
@@ -39,14 +40,21 @@ static void tnt2_getvmode(void *priv)
 
 static int tnt2_probe(struct pci_dev *pci, void *data)
 {
+	unsigned int p;
+
 	if (pci->bars[1].type != PCI_BAR_MEMORY32)
 	{
 		output("TNT2 BAR1 is not memory32?");
 		return 0;
 	}
-	tnt2_fb.fbaddr = (void *)pci->bars[1].addr;
+	
+	/* Map 32M of memory. */
+	for (p = 0; p < 32; p += 4)
+		addmap_4m(0x40000000 + p*1024*1024, pci->bars[1].addr + p*1024*1024);
+	tnt2_fb.fbaddr = (void *)0x40000000;
+	
 	fb = &tnt2_fb;
-	outputf("Found TNT2 with FB at %08x", tnt2_fb.fbaddr);
+	outputf("Found TNT2 with FB at %08x, mapped to %08x", pci->bars[1].addr, tnt2_fb.fbaddr);
 	return 1;
 }
 
