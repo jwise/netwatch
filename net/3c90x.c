@@ -489,7 +489,7 @@ a3c90x_transmit(struct pbuf *p)
 	n = 0;
 	for (; p; p = p->next)
 	{
-		INF_3C90X.TransmitDPD.segments[n].addr = (unsigned int)p->payload;
+		INF_3C90X.TransmitDPD.segments[n].addr = v2p(p->payload);
 		INF_3C90X.TransmitDPD.segments[n].len = p->len | (p->next ? 0 : (1 << 31));
 		len += p->len;
 		n++;
