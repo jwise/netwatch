@@ -476,7 +476,7 @@ static void
 a3c90x_transmit(unsigned int size, const char *pkt)
 {
 	unsigned char status;
-	unsigned int i, retries;
+	unsigned int retries;
 	static unsigned int stillwaiting = 0;
 
 	if (stillwaiting)
