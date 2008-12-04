@@ -476,7 +476,6 @@ static void
 a3c90x_transmit(unsigned int size, const char *pkt)
 {
 	unsigned char status;
-	unsigned int retries;
 	static unsigned int stillwaiting = 0;
 
 	if (stillwaiting)
@@ -493,74 +492,63 @@ a3c90x_transmit(unsigned int size, const char *pkt)
 		stillwaiting = 0;
 	}
 
-	for (retries=0; retries < XMIT_RETRIES; retries++)
+	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 2 /* Stall download */);
+
+	/** Setup the DPD (download descriptor) **/
+	INF_3C90X.TransmitDPD.DnNextPtr = 0;
+	/** set notification for transmission completion (bit 15) **/
+	INF_3C90X.TransmitDPD.FrameStartHeader = (size) | 0x8000;
+	INF_3C90X.TransmitDPD.DataAddr = v2p((void*)pkt);
+	INF_3C90X.TransmitDPD.DataLength = size + (1<<31);
+	
+	/** Send the packet **/
+	outl(INF_3C90X.IOAddr + regDnListPtr_l, v2p(&(INF_3C90X.TransmitDPD)));
+	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 3 /* Unstall download */);
+		
+	oneshot_start_ms(10);
+	while((inl(INF_3C90X.IOAddr + regDnListPtr_l) != 0) && oneshot_running())
+		;
+	if (!oneshot_running())
 	{
-		if (retries != 0)
-			outputf("3c90x: retrying packet send (%d)", retries);
-		
-		_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 2 /* Stall download */);
-
-		/** Setup the DPD (download descriptor) **/
-		INF_3C90X.TransmitDPD.DnNextPtr = 0;
-		/** set notification for transmission completion (bit 15) **/
-		INF_3C90X.TransmitDPD.FrameStartHeader = (size) | 0x8000;
-		INF_3C90X.TransmitDPD.DataAddr = v2p((void*)pkt);
-		INF_3C90X.TransmitDPD.DataLength = size + (1<<31);
-
-		/** Send the packet **/
-		outl(INF_3C90X.IOAddr + regDnListPtr_l, v2p(&(INF_3C90X.TransmitDPD)));
-		_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 3 /* Unstall download */);
-		
-		oneshot_start_ms(10);
-		while((inl(INF_3C90X.IOAddr + regDnListPtr_l) != 0) && oneshot_running())
-			;
-		if (!oneshot_running())
-		{
-			outputf("3c90x: Download engine pointer timeout");
-			continue;
-		}
-
-		oneshot_start_ms(10);
-		stillwaiting = 1;
-		break;
-		
-#if 0		
-		/** successful completion (sans "interrupt Requested" bit) **/
-		if ((status & 0xbf) == 0x80)
-			return;
-
-		outputf("3c90x: Status (%hhX)", status);
-		/** check error codes **/
-		if (status & 0x02)
-		{
-			outputf("3c90x: Tx Reclaim Error (%hhX)", status);
-			a3c90x_reset();
-		} else if (status & 0x04) {
-			outputf("3c90x: Tx Status Overflow (%hhX)", status);
-			for (i=0; i<32; i++)
-				_outb(0x00, INF_3C90X.IOAddr + regTxStatus_b);
-			/** must re-enable after max collisions before re-issuing tx **/
-			_issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
-		} else if (status & 0x08) {
-			outputf("3c90x: Tx Max Collisions (%hhX)", status);
-			/** must re-enable after max collisions before re-issuing tx **/
-			_issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
-		} else if (status & 0x10) {
-			outputf("3c90x: Tx Underrun (%hhX)", status);
-			a3c90x_reset();
-		} else if (status & 0x20) {
-			outputf("3c90x: Tx Jabber (%hhX)", status);
-			a3c90x_reset();
-		} else if ((status & 0x80) != 0x80) {
-			outputf("3c90x: Internal Error - Incomplete Transmission (%hhX)", status);
-			a3c90x_reset();
-		}
-#endif
+		outputf("3c90x: Download engine pointer timeout");
+		return;
 	}
 
-	/** failed after RETRY attempts **/
-	outputf("3c90x: Failed to send after %d retries", retries);
-	return;
+	oneshot_start_ms(10);
+	stillwaiting = 1;
+		
+#if 0		
+	/** successful completion (sans "interrupt Requested" bit) **/
+	if ((status & 0xbf) == 0x80)
+		return;
+
+	outputf("3c90x: Status (%hhX)", status);
+	/** check error codes **/
+	if (status & 0x02)
+	{
+		outputf("3c90x: Tx Reclaim Error (%hhX)", status);
+		a3c90x_reset();
+	} else if (status & 0x04) {
+		outputf("3c90x: Tx Status Overflow (%hhX)", status);
+		for (i=0; i<32; i++)
+			_outb(0x00, INF_3C90X.IOAddr + regTxStatus_b);
+		/** must re-enable after max collisions before re-issuing tx **/
+		_issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
+	} else if (status & 0x08) {
+		outputf("3c90x: Tx Max Collisions (%hhX)", status);
+		/** must re-enable after max collisions before re-issuing tx **/
+		_issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
+	} else if (status & 0x10) {
+		outputf("3c90x: Tx Underrun (%hhX)", status);
+		a3c90x_reset();
+	} else if (status & 0x20) {
+		outputf("3c90x: Tx Jabber (%hhX)", status);
+		a3c90x_reset();
+	} else if ((status & 0x80) != 0x80) {
+		outputf("3c90x: Internal Error - Incomplete Transmission (%hhX)", status);
+		a3c90x_reset();
+	}
+#endif
 }
 
 
