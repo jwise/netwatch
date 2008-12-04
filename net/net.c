@@ -96,19 +96,16 @@ void eth_poll()
 static err_t _transmit(struct netif *netif, struct pbuf *p)
 {
 	struct nic *nic = netif->state;
-	struct pbuf *q;
-	unsigned char pkt[1600];
-	unsigned int len = 0;
 
-	for(q = p; q != NULL; q = q->next)
+/*	for(q = p; q != NULL; q = q->next)
 	{
 		memcpy(pkt + len, q->payload, q->len);
 		len += q->len;
-	}
+	}*/
 
-	outputf("NIC: Transmit packet: %d bytes", len);
+	outputf("NIC: Transmit packet");
 
-	nic->transmit(len, pkt);
+	nic->transmit(p);
 
 	LINK_STATS_INC(link.xmit);
 

@@ -1,5 +1,5 @@
-#ifndef _3C905_H
-#define _3C905_H
+#ifndef _NET_H
+#define _NET_H
 
 #include "etherboot-compat.h"
 

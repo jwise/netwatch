@@ -2,6 +2,7 @@
 #define _ETHERBOOT_COMPAT_H
 
 #include <paging.h>
+#include "lwip/pbuf.h"
 
 #define ETH_ALEN	6
 
@@ -19,7 +20,7 @@ struct nic {
 	unsigned char hwaddr[6];
 
 	int (*poll) (struct nic *nic, int retrieve);
-	void (*transmit) (unsigned int size, const char *pkt);
+	void (*transmit) (struct pbuf *p);
 };
 
 #define virt_to_bus(x) memory_v2p((void *)(x))

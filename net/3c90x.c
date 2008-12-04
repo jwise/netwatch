@@ -224,8 +224,10 @@ typedef struct
     {
     unsigned int	DnNextPtr;
     unsigned int	FrameStartHeader;
-    unsigned int	DataAddr;
-    unsigned int	DataLength;
+    struct {
+      unsigned int addr;
+      unsigned int len;
+    } __attribute ((aligned(8))) segments[64];
     }
     TXD __attribute__ ((aligned(8))); /* 64-bit aligned for bus mastering */
 
@@ -473,17 +475,16 @@ static void a3c90x_reset(void)
  *** pkt - the pointer to the packet data itself.
  ***/
 static void
-a3c90x_transmit(unsigned int size, const char *pkt)
+a3c90x_transmit(struct pbuf *p)
 {
 	unsigned char status;
 	static unsigned int stillwaiting = 0;
+	unsigned int n, len;
 
 	if (stillwaiting)
 	{
-		outputf("Waiting for network completion...");
 		while (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE) && oneshot_running())
 			;
-		outputf("Done");
 		if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE))
 		{
 			outputf("3c90x: tx timeout? txstat %02x", inb(INF_3C90X.IOAddr + regTxStatus_b));
@@ -498,11 +499,20 @@ a3c90x_transmit(unsigned int size, const char *pkt)
 
 	/** Setup the DPD (download descriptor) **/
 	INF_3C90X.TransmitDPD.DnNextPtr = 0;
+	len = 0;
+	n = 0;
+	for (; p; p = p->next)
+	{
+		INF_3C90X.TransmitDPD.segments[n].addr = (unsigned int)p->payload;
+		INF_3C90X.TransmitDPD.segments[n].len = p->len | (p->next ? 0 : (1 << 31));
+		len += p->len;
+		n++;
+	}
 	/** set notification for transmission completion (bit 15) **/
-	INF_3C90X.TransmitDPD.FrameStartHeader = (size) | 0x8000;
-	INF_3C90X.TransmitDPD.DataAddr = v2p((void*)pkt);
-	INF_3C90X.TransmitDPD.DataLength = size + (1<<31);
+	INF_3C90X.TransmitDPD.FrameStartHeader = (len) | 0x8000;
 	
+	outputf("3c90x: Sending %d byte %d seg packet", len, n);
+
 	/** Send the packet **/
 	outl(INF_3C90X.IOAddr + regDnListPtr_l, v2p(&(INF_3C90X.TransmitDPD)));
 	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 3 /* Unstall download */);
