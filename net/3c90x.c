@@ -477,6 +477,21 @@ a3c90x_transmit(unsigned int size, const char *pkt)
 {
 	unsigned char status;
 	unsigned int i, retries;
+	static unsigned int stillwaiting = 0;
+
+	if (stillwaiting)
+	{
+		while (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE) && oneshot_running())
+			;
+		if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE))
+		{
+			outputf("3c90x: tx timeout? txstat %02x", inb(INF_3C90X.IOAddr + regTxStatus_b));
+			outputf("3c90x: Gen sts %04x", inw(INF_3C90X.IOAddr + regCommandIntStatus_w));
+		}
+		status = inb(INF_3C90X.IOAddr + regTxStatus_b);
+		outb(INF_3C90X.IOAddr + regTxStatus_b, 0x00);
+		stillwaiting = 0;
+	}
 
 	for (retries=0; retries < XMIT_RETRIES; retries++)
 	{
@@ -496,25 +511,20 @@ a3c90x_transmit(unsigned int size, const char *pkt)
 		outl(INF_3C90X.IOAddr + regDnListPtr_l, v2p(&(INF_3C90X.TransmitDPD)));
 		_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 3 /* Unstall download */);
 		
-		oneshot_start_ms(100);
+		oneshot_start_ms(10);
 		while((inl(INF_3C90X.IOAddr + regDnListPtr_l) != 0) && oneshot_running())
 			;
 		if (!oneshot_running())
-			outputf("3c90x: Download engine pointer timeout");
-
-		oneshot_start_ms(10);	/* Give it 10 ms */
-		while (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE) && oneshot_running())
-			;
-
-		if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE))
 		{
-			outputf("3c90x: tx timeout? txstat %02x", inb(INF_3C90X.IOAddr + regTxStatus_b));
-			outputf("3c90x: Gen sts %04x", inw(INF_3C90X.IOAddr + regCommandIntStatus_w));
+			outputf("3c90x: Download engine pointer timeout");
 			continue;
 		}
-		status = inb(INF_3C90X.IOAddr + regTxStatus_b);
-		outb(INF_3C90X.IOAddr + regTxStatus_b, 0x00);
+
+		oneshot_start_ms(10);
+		stillwaiting = 1;
+		break;
 		
+#if 0		
 		/** successful completion (sans "interrupt Requested" bit) **/
 		if ((status & 0xbf) == 0x80)
 			return;
@@ -545,6 +555,7 @@ a3c90x_transmit(unsigned int size, const char *pkt)
 			outputf("3c90x: Internal Error - Incomplete Transmission (%hhX)", status);
 			a3c90x_reset();
 		}
+#endif
 	}
 
 	/** failed after RETRY attempts **/
