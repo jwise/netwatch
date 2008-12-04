@@ -61,9 +61,9 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 	pci_write16(0, 31, 2, 0xC0, 0);
 	pci_write16(0, 31, 4, 0xC0, pci_read16(0, 31, 4, 0xC0));
 	pci_write16(0, 31, 4, 0xC0, 0);
-	
+/*	
 	pci_bus_enum();
-
+*/
 	/* Open the SMRAM aperture and load our ELF. */
 	old_smramc = smram_save_state();
 
