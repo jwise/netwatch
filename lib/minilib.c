@@ -1,12 +1,59 @@
 #include "console.h"
 #include <minilib.h>
+#include <output.h>
+
+/* We have both _memcpy and memcpy, because gcc might be able to do better in lwip.
+ * For small things, gcc inlines its memcpy, but for large things, we call out
+ * to this memcpy.
+ */
+inline void _memcpy(void *dest, const void *src, int bytes)
+{
+	/* I hate everyone */
+	/* Since we otherwise compile with -O0, we might as well manually speed this up a bit. */
+	
+	char *cdest = dest;
+	const char *csrc = src;
+	int *idest;
+	const int *isrc;
+	int nwords;
+	
+	/* Align to src (picked arbitrarily; might as well align to something) */
+	while (bytes && ((unsigned int)csrc & 3))
+	{
+		*(cdest++) = *(csrc++);
+		bytes--;
+	}
+	
+	idest = (int *)cdest;
+	isrc = (const int *)csrc;
+	
+	nwords = bytes / 4;
+	bytes -= bytes & ~3;
+	if (nwords != 0)
+		switch(nwords % 8)	/* They see me Duff'sin'.  They hatin'. */
+			do {
+		case  0:	nwords--; *(idest++) = *(isrc++);
+		case  7:	nwords--; *(idest++) = *(isrc++);
+		case  6:	nwords--; *(idest++) = *(isrc++);
+		case  5:	nwords--; *(idest++) = *(isrc++);
+		case  4:	nwords--; *(idest++) = *(isrc++);
+		case  3:	nwords--; *(idest++) = *(isrc++);
+		case  2:	nwords--; *(idest++) = *(isrc++);
+		case  1:	nwords--; *(idest++) = *(isrc++);
+			} while (nwords);
+	
+	cdest = (char *)idest;
+	csrc = (const char *)isrc;
+	while (bytes)	/* Clean up the remainder */
+	{
+		*(cdest++) = *(csrc++);
+		bytes--;
+	}
+}
 
 void memcpy(void *dest, const void *src, int bytes)
 {
-	char *cdest = dest;
-	const char *csrc = src;
-	while (bytes--)
-		*(cdest++) = *(csrc++);
+	_memcpy(dest, src, bytes);
 }
 
 void memset(void *dest, int data, int bytes)
@@ -28,8 +75,7 @@ void memmove(void *dest, void *src, int bytes)
 		while (bytes--)
 			*(--cdest) = *(--csrc);
 	} else
-		while (bytes--)
-			*(cdest++) = *(csrc++);
+		memcpy(dest, src, bytes);
 }
 
 int memcmp (const char *a2, const char *a1, int bytes) {
