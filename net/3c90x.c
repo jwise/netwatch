@@ -251,6 +251,7 @@ static struct
 static struct nic nic;
 static txdesc_t txdesc;
 static rxdesc_t rxdesc;
+static struct pbuf *currecv;
 
 
 #define _outl(v,a) outl((a),(v))
@@ -542,7 +543,37 @@ a3c90x_transmit(struct pbuf *p)
 #endif
 }
 
-
+/* _setup_recv allocates and sets a pbuf from lwIP as the active receive
+ * packet chain for the 3c90x.  The 3c90x must not be trying to receive
+ * when _setup_recv is being called.
+ */
+static void _setup_recv(struct nic *nic)
+{
+	struct pbuf *p, *q;
+	int i;
+	
+	rxdesc.status = 0;	/* Clear it out in the very beginning. */
+	
+	p = pbuf_alloc(PBUF_RAW, 1536 /* XXX magic Max len */, PBUF_POOL);
+	if (!p)
+	{
+		outputf("3c90x: out of memory for packet?");
+		currecv = p;
+		return;
+	}
+	
+	rxdesc.next = 0;
+	rxdesc.status = 0;
+	for (i = 0, q = p; q; q = q->next, i++)
+	{
+		rxdesc.segments[i].addr = v2p(q->payload);
+		rxdesc.segments[i].len = q->len | (q->next ? 0 : (1 << 31));
+	}
+	
+	outl(INF_3C90X.IOAddr + regUpListPtr_l, v2p(&rxdesc));
+	
+	currecv = p;
+}
 
 /*** a3c90x_poll: exported routine that waits for a certain length of time
  *** for a packet, and if it sees none, returns 0.  This routine should
@@ -551,43 +582,18 @@ a3c90x_transmit(struct pbuf *p)
  ***/
 static struct pbuf * a3c90x_poll(struct nic *nic)
 {
-	int i, errcode;
-	struct pbuf *p, *q;
+	int errcode;
+	struct pbuf *p;
 	
-	/* Upload engine acks rxComplete for us later. */
-	if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & 0x0010))
+	if (!currecv)
+		_setup_recv(nic);
+	
+	/* Nothing to do? */
+	if ((rxdesc.status & ((1<<14) | (1<<15))) == 0)
 		return NULL;
 	
-	p = pbuf_alloc(PBUF_RAW, 1536 /* XXX magic Max len */, PBUF_POOL);
-	if (!p)
-	{
-		outputf("3c90x: out of memory for packet?");
-		return NULL;
-	}
-
-	/* We don't need to acknowledge rxComplete -- the upload engine does
-	 * it for us. 
-	 */
-
-	/** Build the up-load descriptor **/
-	rxdesc.next = 0;
-	rxdesc.status = 0;
-	for (i = 0, q = p; q; q = q->next, i++)
-	{
-		rxdesc.segments[i].addr = v2p(q->payload);
-		rxdesc.segments[i].len = q->len | (q->next ? 0 : (1 << 31));
-	}
-
-	/** Submit the upload descriptor to the NIC **/
-	outl(INF_3C90X.IOAddr + regUpListPtr_l, v2p(&rxdesc));
-
-	/** Wait for upload completion (upComplete(15) or upError (14)) **/
-	for (i = 0; i < 40000; i++)	/* XXX What is this shit?! */
-		;
-	while((rxdesc.status & ((1<<14) | (1<<15))) == 0)
-		for (i = 0; i < 40000; i++)
-			;
-
+	p = currecv;
+	
 	/** Check for Error (else we have good packet) **/
 	if (rxdesc.status & (1<<14))
 	{
@@ -604,11 +610,14 @@ static struct pbuf * a3c90x_poll(struct nic *nic)
 			outputf("3C90X: Oversized Frame (%hX)",errcode>>16);
 		else
 			outputf("3C90X: Packet error (%hX)",errcode>>16);
+		
+		pbuf_free(p);		/* Bounce the old one before setting it up again. */
+		_setup_recv(nic);
 		return NULL;
 	}
 
-	/* Resize the packet to how large it actually is. */
-	pbuf_realloc(p, rxdesc.status & 0x1FFF);
+	pbuf_realloc(p, rxdesc.status & 0x1FFF);	/* Resize the packet to how large it actually is. */
+	_setup_recv(nic);	/* ..and light the NIC up again. */
 	
 	return p;
 }
@@ -805,45 +814,44 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     linktype = 0x0008;
     if (mopt & 0x01)
 	{
-	outputf("%s100Base-T4",(c++)?", ":"");
+	outputf("  100Base-T4");
 	linktype = 0x0006;
 	}
     if (mopt & 0x04)
 	{
-	outputf("%s100Base-FX",(c++)?", ":"");
+	outputf("  100Base-FX");
 	linktype = 0x0005;
 	}
     if (mopt & 0x10)
 	{
-	outputf("%s10Base-2",(c++)?", ":"");
+	outputf("  10Base-2");
 	linktype = 0x0003;
 	}
     if (mopt & 0x20)
 	{
-	outputf("%sAUI",(c++)?", ":"");
+	outputf("  AUI");
 	linktype = 0x0001;
 	}
     if (mopt & 0x40)
 	{
-	outputf("%sMII",(c++)?", ":"");
+	outputf("  MII");
 	linktype = 0x0006;
 	}
     if ((mopt & 0xA) == 0xA)
 	{
-	outputf("%s10Base-T / 100Base-TX",(c++)?", ":"");
+	outputf("  10Base-T / 100Base-TX");
 	linktype = 0x0008;
 	}
     else if ((mopt & 0xA) == 0x2)
 	{
-	outputf("%s100Base-TX",(c++)?", ":"");
+	outputf("  100Base-TX");
 	linktype = 0x0008;
 	}
     else if ((mopt & 0xA) == 0x8)
 	{
-	outputf("%s10Base-T",(c++)?", ":"");
+	outputf("  10Base-T");
 	linktype = 0x0008;
 	}
-    outputf(".");
 
     /** Determine transceiver type to use, depending on value stored in
      ** eeprom 0x16
@@ -905,7 +913,9 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     /** Set the RX filter = receive only individual pkts & multicast & bcast. **/
     _issue_command(INF_3C90X.IOAddr, cmdSetRxFilter, 0x01 + 0x02 + 0x04);
     _issue_command(INF_3C90X.IOAddr, cmdRxEnable, 0);
-
+    
+    /* Now stick a packet in the queue. */
+    _setup_recv(&nic);
 
     /**
      ** set Indication and Interrupt flags , acknowledge any IRQ's
