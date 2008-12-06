@@ -7,6 +7,7 @@
 #include <serial.h>
 #include <fb.h>
 #include <output.h>
+#include <msr.h>
 #include "../net/net.h"
 #include "vga-overlay.h"
 
@@ -17,6 +18,9 @@ unsigned char vgasave = 0;
 void smi_entry(void)
 {
 	char statstr[512];
+
+	/* Reenable caching on SMRAM. */
+	WRMSR(0x202, (RDMSR(0x202) & ~(0xFFULL)) | 0x06ULL);
 
 	pcisave = inl(0xCF8);
 	vgasave = inb(0x3D4);
@@ -51,6 +55,9 @@ void smi_entry(void)
 	pci_bother_all();
 	outl(0xCF8, pcisave);
 	outb(0x3D4, vgasave);
+	
+	/* Disable caching on SMRAM again, to prevent the user from whacking us. */
+	WRMSR(0x202, RDMSR(0x202) & ~(0xFFULL));
 }
 
 extern void timer_handler(smi_event_t ev);
