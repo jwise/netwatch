@@ -250,9 +250,6 @@ static struct
 
 static struct nic nic;
 static txdesc_t txdesc;
-static rxdesc_t rxdesc;
-static struct pbuf *currecv;
-
 
 #define _outl(v,a) outl((a),(v))
 #define _outw(v,a) outw((a),(v))
@@ -462,8 +459,11 @@ static void _transmit(struct pbuf *p)
 	
 	if (oldpbuf)
 	{
+		int i = 0;
 		while (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE) && oneshot_running())
-			;
+			i++;
+		if (i)
+			outputf("3c90x: had to wait %d loops to tx", i);
 		if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE))
 		{
 			outputf("3c90x: tx timeout? txstat %02x", inb(INF_3C90X.IOAddr + regTxStatus_b));
@@ -540,83 +540,120 @@ static void _transmit(struct pbuf *p)
 #endif
 }
 
-/* _setup_recv allocates and sets a pbuf from lwIP as the active receive
- * packet chain for the 3c90x.  The 3c90x must not be trying to receive
- * when _setup_recv is being called.
+/***************************** Receive routines *****************************/
+#define MAX_RECV_SIZE 1536
+#define RECV_BUFS 4
+
+static rxdesc_t rxdescs[RECV_BUFS];
+static struct pbuf *pbufs[RECV_BUFS] = {0,};
+
+/* rxcons is the pointer to the receive descriptor that the ethernet card will
+ * write into next.
  */
-static void _setup_recv(struct nic *nic)
+static int rxcons = 0;
+
+/* rxprod is the pointer to the receive descriptor that the driver will
+ * allocate next.
+ */
+static int rxprod = 0;
+
+/* _recv_prepare fills the 3c90x's ring buffer with fresh pbufs from lwIP.
+ * The upload engine need not be stalled.
+ */
+static void _recv_prepare(struct nic *nic)
 {
-	struct pbuf *p, *q;
-	int i;
-	
-	rxdesc.status = 0;	/* Clear it out in the very beginning. */
-	
-	p = pbuf_alloc(PBUF_RAW, 1536 /* XXX magic Max len */, PBUF_POOL);
-	if (!p)
+	int oldprod;
+
+	oldprod = rxprod;
+	while ((rxprod != rxcons) || !pbufs[rxprod])
 	{
-		outputf("3c90x: out of memory for packet?");
-		currecv = p;
-		return;
+		int i;
+		struct pbuf *p;
+		
+		if (!pbufs[rxprod])
+			pbufs[rxprod] = p = pbuf_alloc(PBUF_RAW, MAX_RECV_SIZE, PBUF_POOL);
+		else {
+			outputf("WARNING: 3c90x has pbuf in slot %d", rxprod);
+			p = pbufs[rxprod];
+		}
+		
+		if (!p)
+		{
+			outputf("3c90x: out of memory for rx pbuf?");
+			break;
+		}
+		
+		rxdescs[rxprod].status = 0;
+		rxdescs[rxprod].next = 0;
+		for (i = 0; p; p = p->next, i++)
+		{
+			rxdescs[rxprod].segments[i].addr = v2p(p->payload);
+			rxdescs[rxprod].segments[i].len = p->len | (p->next ? 0 : (1 << 31));
+		}
+		
+		/* Hook in the new one after and only after it's been fully set up. */
+		rxdescs[(rxprod + RECV_BUFS - 1) % RECV_BUFS].next = v2p(&(rxdescs[rxprod]));
+		rxprod = (rxprod + 1) % RECV_BUFS;
 	}
 	
-	rxdesc.next = 0;
-	rxdesc.status = 0;
-	for (i = 0, q = p; q; q = q->next, i++)
+	if (inl(INF_3C90X.IOAddr + regUpListPtr_l) == 0 && pbufs[oldprod])	/* Ran out of shit, and got new shit? */
 	{
-		rxdesc.segments[i].addr = v2p(q->payload);
-		rxdesc.segments[i].len = q->len | (q->next ? 0 : (1 << 31));
+		outl(INF_3C90X.IOAddr + regUpListPtr_l, v2p(&rxdescs[oldprod]));
+		outputf("3c90x: WARNING: Ran out of rx slots");
 	}
 	
-	outl(INF_3C90X.IOAddr + regUpListPtr_l, v2p(&rxdesc));
-	
-	currecv = p;
 }
 
-/*** a3c90x_poll: exported routine that waits for a certain length of time
- *** for a packet, and if it sees none, returns 0.  This routine should
- *** copy the packet to nic->packet if it gets a packet and set the size
- *** in nic->packetlen.  Return 1 if a packet was found.
- ***/
-static struct pbuf * _recv(struct nic *nic)
+/* _recv polls the ring buffer to see if any packets are available.  If any 
+ * are, then eth_recv is called for each available.  _recv returns how many
+ * packets it received successfully.  Whether _recv got any packets or not,
+ * _recv does not block, and reinitializes the ring buffer with fresh pbufs.
+ */
+static int _recv(struct nic *nic)
 {
-	int errcode;
+	int errcode, n = 0;
 	struct pbuf *p;
 	
-	if (!currecv)
-		_setup_recv(nic);
-	
 	/* Nothing to do? */
-	if ((rxdesc.status & ((1<<14) | (1<<15))) == 0)
-		return NULL;
-	
-	p = currecv;
-	
-	/** Check for Error (else we have good packet) **/
-	if (rxdesc.status & (1<<14))
+	while ((rxdescs[rxcons].status & ((1<<14) | (1<<15))) != 0)
 	{
-		errcode = rxdesc.status;
-		if (errcode & (1<<16))
-			outputf("3C90X: Rx Overrun (%hX)",errcode>>16);
-		else if (errcode & (1<<17))
-			outputf("3C90X: Runt Frame (%hX)",errcode>>16);
-		else if (errcode & (1<<18))
-			outputf("3C90X: Alignment Error (%hX)",errcode>>16);
-		else if (errcode & (1<<19))
-			outputf("3C90X: CRC Error (%hX)",errcode>>16);
-		else if (errcode & (1<<20))
-			outputf("3C90X: Oversized Frame (%hX)",errcode>>16);
-		else
-			outputf("3C90X: Packet error (%hX)",errcode>>16);
+		/** Check for Error (else we have good packet) **/
+		if (rxdescs[rxcons].status & (1<<14))
+		{
+			errcode = rxdescs[rxcons].status;
+			if (errcode & (1<<16))
+				outputf("3C90X: Rx Overrun (%hX)",errcode>>16);
+			else if (errcode & (1<<17))
+				outputf("3C90X: Runt Frame (%hX)",errcode>>16);
+			else if (errcode & (1<<18))
+				outputf("3C90X: Alignment Error (%hX)",errcode>>16);
+			else if (errcode & (1<<19))
+				outputf("3C90X: CRC Error (%hX)",errcode>>16);
+			else if (errcode & (1<<20))
+				outputf("3C90X: Oversized Frame (%hX)",errcode>>16);
+			else
+				outputf("3C90X: Packet error (%hX)",errcode>>16);
 		
-		pbuf_free(p);		/* Bounce the old one before setting it up again. */
-		_setup_recv(nic);
-		return NULL;
+			p = NULL;	
+			pbuf_free(pbufs[rxcons]);		/* Bounce the old one before setting it up again. */
+		} else {
+			p = pbufs[rxcons];
+			pbuf_realloc(p, rxdescs[rxcons].status & 0x1FFF);	/* Resize the packet to how large it actually is. */
+		}
+		
+		pbufs[rxcons] = NULL;
+		rxdescs[rxcons].status = 0; 
+		rxcons = (rxcons + 1) % RECV_BUFS;
+		
+		if (p)
+		{
+			eth_recv(nic, p);
+			n++;
+		}
 	}
 
-	pbuf_realloc(p, rxdesc.status & 0x1FFF);	/* Resize the packet to how large it actually is. */
-	_setup_recv(nic);	/* ..and light the NIC up again. */
-	
-	return p;
+	_recv_prepare(nic);	/* Light the NIC up again. */
+	return n;
 }
 
 /*** a3c90x_disable: exported routine to disable the card.  What's this for?
@@ -785,12 +822,6 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+2);
     _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+4);
 
-    /** Fill in our entry in the etherboot arp table **/
-/* XXX ? for lwip? 
-    for(i=0;i<ETH_ALEN;i++)
-	nic.node_addr[i] = (eeprom[HWADDR_OFFSET + i/2] >> (8*((i&1)^1))) & 0xff;
-*/
-
     /** Read the media options register, print a message and set default
      ** xcvr.
      **
@@ -909,10 +940,12 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
 
     /** Set the RX filter = receive only individual pkts & multicast & bcast. **/
     _issue_command(INF_3C90X.IOAddr, cmdSetRxFilter, 0x01 + 0x02 + 0x04);
-    _issue_command(INF_3C90X.IOAddr, cmdRxEnable, 0);
     
-    /* Now stick a packet in the queue. */
-    _setup_recv(&nic);
+    /* Stick some packets in the queue. */
+    _recv_prepare(&nic);
+    
+    /* And light up the RX engine. */
+    _issue_command(INF_3C90X.IOAddr, cmdRxEnable, 0);
 
     /**
      ** set Indication and Interrupt flags , acknowledge any IRQ's

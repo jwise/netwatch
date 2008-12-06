@@ -19,7 +19,7 @@ struct nic {
 	
 	unsigned char hwaddr[6];
 
-	struct pbuf * (*recv) (struct nic *nic);
+	int (*recv) (struct nic *nic);
 	void (*transmit) (struct pbuf *p);
 };
 

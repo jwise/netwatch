@@ -25,10 +25,33 @@ static struct netif _netif;
 
 extern struct pci_driver a3c90x_driver;
 
+void eth_recv(struct nic *nic, struct pbuf *p)
+{
+	struct eth_hdr *ethhdr;
+	
+	LINK_STATS_INC(link.recv);
+	
+	ethhdr = p->payload;
+	
+	switch (htons(ethhdr->type)) {
+	case ETHTYPE_IP:
+	case ETHTYPE_ARP:
+		if (_netif.input(p, &_netif) != ERR_OK)
+		{
+			LWIP_DEBUGF(NETIF_DEBUG, ("netdev_input: IP input error\n"));
+			pbuf_free(p);
+		}
+		break;
+		
+	default:
+		outputf("Unhandled packet type %04x input", ethhdr->type);
+		pbuf_free(p);
+		break;
+	}
+}
+
 void eth_poll()
 {
-	struct pbuf *p;
-	struct eth_hdr *ethhdr;
 	static int ticks = 0;
 	int i = 15;	/* Don't process more than 15 packets at a time; we don't want the host to get TOO badly slowed down... */
 	
@@ -45,29 +68,12 @@ void eth_poll()
 		tcp_tmr();
 	ticks++;
 
-	while ((i--) && ((p = _nic->recv(_nic)) != NULL))
+	while (i > 0)
 	{
-//		outputf("NIC: Packet: %d bytes", p->tot_len);
-			
-		LINK_STATS_INC(link.recv);
-		
-		ethhdr = p->payload;
-		
-		switch (htons(ethhdr->type)) {
-		case ETHTYPE_IP:
-		case ETHTYPE_ARP:
-			if (_netif.input(p, &_netif) != ERR_OK)
-			{
-				LWIP_DEBUGF(NETIF_DEBUG, ("netdev_input: IP input error\n"));
-				pbuf_free(p);
-			}
+		int n = _nic->recv(_nic);
+		i -= n;
+		if (n == 0)
 			break;
-			
-		default:
-			outputf("Unhandled packet type %04x input", ethhdr->type);
-			pbuf_free(p);
-			break;
-		}
 	}
 }
 
