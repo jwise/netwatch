@@ -46,7 +46,7 @@ void eth_poll()
 
 	if ((p = _nic->recv(_nic)) != NULL)
 	{
-		outputf("NIC: Packet: %d bytes", p->tot_len);
+//		outputf("NIC: Packet: %d bytes", p->tot_len);
 			
 		LINK_STATS_INC(link.recv);
 		
@@ -74,7 +74,7 @@ static err_t _transmit(struct netif *netif, struct pbuf *p)
 {
 	struct nic *nic = netif->state;
 
-	outputf("NIC: Transmit packet");
+//	outputf("NIC: Transmit packet");
 
 	nic->transmit(p);
 

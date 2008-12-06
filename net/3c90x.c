@@ -454,8 +454,7 @@ static void a3c90x_reset(void)
  *** size - size of the non-header part of the packet that needs transmitted;
  *** pkt - the pointer to the packet data itself.
  ***/
-static void
-a3c90x_transmit(struct pbuf *p)
+static void _transmit(struct pbuf *p)
 {
 	unsigned char status;
 	static struct pbuf *oldpbuf = NULL;
@@ -494,8 +493,6 @@ a3c90x_transmit(struct pbuf *p)
 	/** set notification for transmission completion (bit 15) **/
 	txdesc.hdr = (len) | 0x8000;
 	
-	outputf("3c90x: Sending %d byte %d seg packet", len, n);
-
 	/** Send the packet **/
 	outl(INF_3C90X.IOAddr + regDnListPtr_l, v2p(&txdesc));
 	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 3 /* Unstall download */);
@@ -580,7 +577,7 @@ static void _setup_recv(struct nic *nic)
  *** copy the packet to nic->packet if it gets a packet and set the size
  *** in nic->packetlen.  Return 1 if a packet was found.
  ***/
-static struct pbuf * a3c90x_poll(struct nic *nic)
+static struct pbuf * _recv(struct nic *nic)
 {
 	int errcode;
 	struct pbuf *p;
@@ -925,8 +922,8 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     _issue_command(INF_3C90X.IOAddr, cmdAcknowledgeInterrupt, 0x661);
 
     /* * Set our exported functions **/
-    nic.recv     = a3c90x_poll;
-    nic.transmit = a3c90x_transmit;
+    nic.recv     = _recv;
+    nic.transmit = _transmit;
     memcpy(nic.hwaddr, INF_3C90X.HWAddr, 6);
     eth_register(&nic);
 
