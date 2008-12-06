@@ -86,7 +86,7 @@ struct pseudo_descriptor {
         short pad;
         unsigned short limit;
         unsigned long linear_base;
-};
+} __attribute__((packed));
 
 void traps_install(void) {
 
