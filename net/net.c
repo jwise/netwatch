@@ -30,6 +30,7 @@ void eth_poll()
 	struct pbuf *p;
 	struct eth_hdr *ethhdr;
 	static int ticks = 0;
+	int i = 15;	/* Don't process more than 15 packets at a time; we don't want the host to get TOO badly slowed down... */
 	
 	if (!_nic)
 		return;
@@ -44,7 +45,7 @@ void eth_poll()
 		tcp_tmr();
 	ticks++;
 
-	if ((p = _nic->recv(_nic)) != NULL)
+	while ((i--) && ((p = _nic->recv(_nic)) != NULL))
 	{
 //		outputf("NIC: Packet: %d bytes", p->tot_len);
 			

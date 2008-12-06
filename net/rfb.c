@@ -185,7 +185,6 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 		/* FALL THROUGH */
 
 	case SST_SENDING:
-
 		while (1) {
 			unsigned char mbuf[8192	/* XXX magic */];
 			
@@ -199,26 +198,18 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 			if (left > 8192)
 				left = 8192;
 
-			if (left > tcp_mss(pcb)) {
-				sndlength = tcp_mss(pcb);
-			} else {
-				sndlength = left;
-			}
+			memcpy(mbuf, fb->fbaddr + state->update_pos, left);	/* It's OK if it becomes smaller later. */
 			
-			memcpy(mbuf, fb->fbaddr + state->update_pos, sndlength);	/* It's OK if it becomes smaller later. */
-
+			sndlength = left;
 			do {
 				err = tcp_write(pcb, mbuf, sndlength, TCP_WRITE_FLAG_COPY /* This is my memory on the stack, thank you very much. */);
-				if (err == ERR_MEM) {
-					outputf("RFB: ERR_MEM sending %d", sndlength);
+				if (err == ERR_MEM)		/* Back down until lwip says we've got space. */
 					sndlength /= 2;
-				}
 			} while (err == ERR_MEM && sndlength > 1);
 
-			if (err == ERR_OK) {
-				outputf("RFB: attempting send %d", sndlength);
-			} else {
-				outputf("RFB: send error %d", err);
+			if (err != ERR_OK) {
+				/* We'll just give up for now and come back when we have space later. */
+				//outputf("RFB: send error %d", err);
 				break;
 			}
 
@@ -460,7 +451,7 @@ static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
 		case OK:
 			outputf("RFB FSM: ok");
 
-			/* Might as well send now... */
+			/* Kick off a send. */
 			if (state->send_state == SST_IDLE
 			    && state->update_requested) {
 				send_fsm(pcb, state);
