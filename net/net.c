@@ -97,12 +97,6 @@ static err_t _transmit(struct netif *netif, struct pbuf *p)
 {
 	struct nic *nic = netif->state;
 
-/*	for(q = p; q != NULL; q = q->next)
-	{
-		memcpy(pkt + len, q->payload, q->len);
-		len += q->len;
-	}*/
-
 	outputf("NIC: Transmit packet");
 
 	nic->transmit(p);
