@@ -177,8 +177,7 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 		hdr.width = htons(fb->curmode.xres);
 		hdr.height = htons(fb->curmode.yres);
 		hdr.enctype = htonl(0);
-		tcp_write(pcb, &hdr, sizeof(hdr), 0);
-		tcp_output(pcb);
+		tcp_write(pcb, &hdr, sizeof(hdr), TCP_WRITE_FLAG_COPY);
 
 		state->update_pos = 0;
 		state->send_state = SST_SENDING;
@@ -188,21 +187,28 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 	case SST_SENDING:
 
 		while (1) {
+			unsigned char mbuf[8192	/* XXX magic */];
+			
 			left = state->frame_bytes - state->update_pos;
 
 			if (left == 0) {
 				state->send_state = SST_IDLE;
 				break;
 			}
+			
+			if (left > 8192)
+				left = 8192;
 
 			if (left > tcp_mss(pcb)) {
 				sndlength = tcp_mss(pcb);
 			} else {
 				sndlength = left;
 			}
+			
+			memcpy(mbuf, fb->fbaddr + state->update_pos, sndlength);	/* It's OK if it becomes smaller later. */
 
 			do {
-				err = tcp_write(pcb, fb->fbaddr + state->update_pos, sndlength, 0);
+				err = tcp_write(pcb, mbuf, sndlength, TCP_WRITE_FLAG_COPY /* This is my memory on the stack, thank you very much. */);
 				if (err == ERR_MEM) {
 					outputf("RFB: ERR_MEM sending %d", sndlength);
 					sndlength /= 2;
@@ -216,11 +222,6 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 				break;
 			}
 
-			if (tcp_output(pcb) != ERR_OK) {
-				outputf("RFB: tcp_output has had enough");
-				break;
-			}
-
 			state->update_pos += sndlength;
 
 			if (tcp_sndbuf(pcb) == 0) {
@@ -229,6 +230,11 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 		}
 
 		break;
+	}
+	
+	if (tcp_output(pcb) != ERR_OK)
+	{
+		outputf("RFB: tcp_output bailed in send_fsm?");
 	}
 }
 
@@ -309,7 +315,7 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 		state->state = ST_MAIN;
 
 		outputf("RFB: Sending server info", state->version);
-		tcp_write(pcb, &server_info, sizeof(server_info), 0);
+		tcp_write(pcb, &server_info, sizeof(server_info), TCP_WRITE_FLAG_COPY);
 		tcp_output(pcb);
 
 		return OK;
