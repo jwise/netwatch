@@ -22,6 +22,13 @@ continue:
 	mov gs, ax
 	mov ss, ax
 	mov esp, [dataptr]		; Load stack pointer.
+
+	; Before we do anything, turn off alignment checking.
+	pushf
+	pop eax
+	and eax, ~(1 << 18)
+	push eax
+	popf
 	
 	mov eax, [dataptr+4]		; Load target jump address
 	call eax			; then jump into C.
