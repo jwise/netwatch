@@ -478,10 +478,10 @@ static void
 a3c90x_transmit(struct pbuf *p)
 {
 	unsigned char status;
-	static unsigned int stillwaiting = 0;
+	static struct pbuf *oldpbuf = NULL;
 	unsigned int n, len;
 	
-	if (stillwaiting)
+	if (oldpbuf)
 	{
 		while (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE) && oneshot_running())
 			;
@@ -492,7 +492,8 @@ a3c90x_transmit(struct pbuf *p)
 		}
 		status = inb(INF_3C90X.IOAddr + regTxStatus_b);
 		outb(INF_3C90X.IOAddr + regTxStatus_b, 0x00);
-		stillwaiting = 0;
+		pbuf_free(oldpbuf);
+		oldpbuf = NULL;
 	}
 
 	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 2 /* Stall download */);
@@ -501,11 +502,13 @@ a3c90x_transmit(struct pbuf *p)
 	INF_3C90X.TransmitDPD.DnNextPtr = 0;
 	len = 0;
 	n = 0;
+	oldpbuf = p;
 	for (; p; p = p->next)
 	{
 		INF_3C90X.TransmitDPD.segments[n].addr = v2p(p->payload);
 		INF_3C90X.TransmitDPD.segments[n].len = p->len | (p->next ? 0 : (1 << 31));
 		len += p->len;
+		pbuf_ref(p);
 		n++;
 	}
 	/** set notification for transmission completion (bit 15) **/
@@ -526,9 +529,6 @@ a3c90x_transmit(struct pbuf *p)
 		return;
 	}
 
-	oneshot_start_ms(10);
-	stillwaiting = 1;
-		
 #if 0		
 	/** successful completion (sans "interrupt Requested" bit) **/
 	if ((status & 0xbf) == 0x80)
