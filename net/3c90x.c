@@ -218,28 +218,24 @@ enum Commands
 #define INT_CMDINPROGRESS	(1<<12)
 #define INT_WINDOWNUMBER	(7<<13)
 
+/* These structures are all 64-bit aligned, as needed for bus-mastering I/O. */
+typedef struct {
+	unsigned int addr;
+	unsigned int len;
+} segment_t __attribute__ ((aligned(8)));
 
-/*** TX descriptor ***/
-typedef struct
-    {
-    unsigned int	DnNextPtr;
-    unsigned int	FrameStartHeader;
-    struct {
-      unsigned int addr;
-      unsigned int len;
-    } __attribute ((aligned(8))) segments[64];
-    }
-    TXD __attribute__ ((aligned(8))); /* 64-bit aligned for bus mastering */
+typedef struct {
+	unsigned int next;
+	unsigned int hdr;
+	segment_t segments[64 /* XXX magic */];
+} txdesc_t __attribute__ ((aligned(8)));
 
 /*** RX descriptor ***/
-typedef struct
-    {
-    unsigned int	UpNextPtr;
-    unsigned int	UpPktStatus;
-    unsigned int	DataAddr;
-    unsigned int	DataLength;
-    }
-    RXD __attribute__ ((aligned(8))); /* 64-bit aligned for bus mastering */
+typedef struct {
+	unsigned int	next;
+	unsigned int	status;
+	segment_t segments[64];
+} rxdesc_t __attribute__ ((aligned(8)));
 
 /*** Global variables ***/
 static struct
@@ -249,11 +245,13 @@ static struct
     unsigned char	CurrentWindow;
     unsigned int	IOAddr;
     unsigned char	HWAddr[ETH_ALEN];
-    TXD			TransmitDPD;
-    RXD			ReceiveUPD;
     }
     INF_3C90X;
+
 static struct nic nic;
+static txdesc_t txdesc;
+static rxdesc_t rxdesc;
+
 
 #define _outl(v,a) outl((a),(v))
 #define _outw(v,a) outw((a),(v))
@@ -407,13 +405,6 @@ a3c90x_internal_WriteEeprom(int ioaddr, int address, unsigned short value)
  ***/
 static void a3c90x_reset(void)
     {
-#ifdef	CFG_3C90X_PRESERVE_XCVR
-    int cfg;
-    /** Read the current InternalConfig value. **/
-    _set_window(INF_3C90X.IOAddr, winTxRxOptions3);
-    cfg = inl(INF_3C90X.IOAddr + regInternalConfig_3_l);
-#endif
-
     /** Send the reset command to the card **/
     outputf("3c90x: issuing RESET");
     _issue_command(INF_3C90X.IOAddr, cmdGlobalReset, 0);
@@ -425,18 +416,6 @@ static void a3c90x_reset(void)
     _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+0);
     _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+2);
     _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+4);
-
-#ifdef	CFG_3C90X_PRESERVE_XCVR
-    /** Re-set the original InternalConfig value from before reset **/
-    _set_window(INF_3C90X.IOAddr, winTxRxOptions3);
-    _outl(cfg, INF_3C90X.IOAddr + regInternalConfig_3_l);
-
-    /** enable DC converter for 10-Base-T **/
-    if ((cfg&0x0300) == 0x0300)
-	{
-	_issue_command(INF_3C90X.IOAddr, cmdEnableDcConverter, 0);
-	}
-#endif
 
     /** Issue transmit reset, wait for command completion **/
     _issue_command(INF_3C90X.IOAddr, cmdTxReset, 0);
@@ -499,25 +478,25 @@ a3c90x_transmit(struct pbuf *p)
 	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 2 /* Stall download */);
 
 	/** Setup the DPD (download descriptor) **/
-	INF_3C90X.TransmitDPD.DnNextPtr = 0;
+	txdesc.next = 0;
 	len = 0;
 	n = 0;
 	oldpbuf = p;
 	for (; p; p = p->next)
 	{
-		INF_3C90X.TransmitDPD.segments[n].addr = v2p(p->payload);
-		INF_3C90X.TransmitDPD.segments[n].len = p->len | (p->next ? 0 : (1 << 31));
+		txdesc.segments[n].addr = v2p(p->payload);
+		txdesc.segments[n].len = p->len | (p->next ? 0 : (1 << 31));
 		len += p->len;
 		pbuf_ref(p);
 		n++;
 	}
 	/** set notification for transmission completion (bit 15) **/
-	INF_3C90X.TransmitDPD.FrameStartHeader = (len) | 0x8000;
+	txdesc.hdr = (len) | 0x8000;
 	
 	outputf("3c90x: Sending %d byte %d seg packet", len, n);
 
 	/** Send the packet **/
-	outl(INF_3C90X.IOAddr + regDnListPtr_l, v2p(&(INF_3C90X.TransmitDPD)));
+	outl(INF_3C90X.IOAddr + regDnListPtr_l, v2p(&txdesc));
 	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 3 /* Unstall download */);
 		
 	oneshot_start_ms(10);
@@ -570,63 +549,69 @@ a3c90x_transmit(struct pbuf *p)
  *** copy the packet to nic->packet if it gets a packet and set the size
  *** in nic->packetlen.  Return 1 if a packet was found.
  ***/
-static int
-a3c90x_poll(struct nic *nic, int retrieve)
-    {
-    int i, errcode;
-
-    if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w)&0x0010))
+static struct pbuf * a3c90x_poll(struct nic *nic)
+{
+	int i, errcode;
+	struct pbuf *p, *q;
+	
+	/* Upload engine acks rxComplete for us later. */
+	if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & 0x0010))
+		return NULL;
+	
+	p = pbuf_alloc(PBUF_RAW, 1536 /* XXX magic Max len */, PBUF_POOL);
+	if (!p)
 	{
-	return 0;
+		outputf("3c90x: out of memory for packet?");
+		return NULL;
 	}
 
-    if ( ! retrieve ) return 1;
+	/* We don't need to acknowledge rxComplete -- the upload engine does
+	 * it for us. 
+	 */
 
-    /** we don't need to acknowledge rxComplete -- the upload engine
-     ** does it for us.
-     **/
-
-    /** Build the up-load descriptor **/
-    INF_3C90X.ReceiveUPD.UpNextPtr = 0;
-    INF_3C90X.ReceiveUPD.UpPktStatus = 0;
-    INF_3C90X.ReceiveUPD.DataAddr = v2p(nic->packet);
-    INF_3C90X.ReceiveUPD.DataLength = 1536 + (1<<31);
-
-    /** Submit the upload descriptor to the NIC **/
-    _outl(v2p(&(INF_3C90X.ReceiveUPD)),
-         INF_3C90X.IOAddr + regUpListPtr_l);
-
-    /** Wait for upload completion (upComplete(15) or upError (14)) **/
-    for(i=0;i<40000;i++);
-    while((INF_3C90X.ReceiveUPD.UpPktStatus & ((1<<14) | (1<<15))) == 0)
-	for(i=0;i<40000;i++);
-
-    /** Check for Error (else we have good packet) **/
-    if (INF_3C90X.ReceiveUPD.UpPktStatus & (1<<14))
+	/** Build the up-load descriptor **/
+	rxdesc.next = 0;
+	rxdesc.status = 0;
+	for (i = 0, q = p; q; q = q->next, i++)
 	{
-	errcode = INF_3C90X.ReceiveUPD.UpPktStatus;
-	if (errcode & (1<<16))
-	    outputf("3C90X: Rx Overrun (%hX)",errcode>>16);
-	else if (errcode & (1<<17))
-	    outputf("3C90X: Runt Frame (%hX)",errcode>>16);
-	else if (errcode & (1<<18))
-	    outputf("3C90X: Alignment Error (%hX)",errcode>>16);
-	else if (errcode & (1<<19))
-	    outputf("3C90X: CRC Error (%hX)",errcode>>16);
-	else if (errcode & (1<<20))
-	    outputf("3C90X: Oversized Frame (%hX)",errcode>>16);
-	else
-	    outputf("3C90X: Packet error (%hX)",errcode>>16);
-	return 0;
+		rxdesc.segments[i].addr = v2p(q->payload);
+		rxdesc.segments[i].len = q->len | (q->next ? 0 : (1 << 31));
 	}
 
-    /** Ok, got packet.  Set length in nic->packetlen. **/
-    nic->packetlen = (INF_3C90X.ReceiveUPD.UpPktStatus & 0x1FFF);
+	/** Submit the upload descriptor to the NIC **/
+	outl(INF_3C90X.IOAddr + regUpListPtr_l, v2p(&rxdesc));
 
-    return 1;
-    }
+	/** Wait for upload completion (upComplete(15) or upError (14)) **/
+	for (i = 0; i < 40000; i++)	/* XXX What is this shit?! */
+		;
+	while((rxdesc.status & ((1<<14) | (1<<15))) == 0)
+		for (i = 0; i < 40000; i++)
+			;
 
+	/** Check for Error (else we have good packet) **/
+	if (rxdesc.status & (1<<14))
+	{
+		errcode = rxdesc.status;
+		if (errcode & (1<<16))
+			outputf("3C90X: Rx Overrun (%hX)",errcode>>16);
+		else if (errcode & (1<<17))
+			outputf("3C90X: Runt Frame (%hX)",errcode>>16);
+		else if (errcode & (1<<18))
+			outputf("3C90X: Alignment Error (%hX)",errcode>>16);
+		else if (errcode & (1<<19))
+			outputf("3C90X: CRC Error (%hX)",errcode>>16);
+		else if (errcode & (1<<20))
+			outputf("3C90X: Oversized Frame (%hX)",errcode>>16);
+		else
+			outputf("3C90X: Packet error (%hX)",errcode>>16);
+		return NULL;
+	}
 
+	/* Resize the packet to how large it actually is. */
+	pbuf_realloc(p, rxdesc.status & 0x1FFF);
+	
+	return p;
+}
 
 /*** a3c90x_disable: exported routine to disable the card.  What's this for?
  *** the eepro100.c driver didn't have one, so I just left this one empty too.
@@ -930,7 +915,7 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
     _issue_command(INF_3C90X.IOAddr, cmdAcknowledgeInterrupt, 0x661);
 
     /* * Set our exported functions **/
-    nic.poll     = a3c90x_poll;
+    nic.recv     = a3c90x_poll;
     nic.transmit = a3c90x_transmit;
     memcpy(nic.hwaddr, INF_3C90X.HWAddr, 6);
     eth_register(&nic);

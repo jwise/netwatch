@@ -27,11 +27,8 @@ extern struct pci_driver a3c90x_driver;
 
 void eth_poll()
 {
-	unsigned char pkt[1600];
-	int len;
-	struct pbuf *p, *q;
+	struct pbuf *p;
 	struct eth_hdr *ethhdr;
-	int pos = 0;
 	static int ticks = 0;
 	
 	if (!_nic)
@@ -47,30 +44,10 @@ void eth_poll()
 		tcp_tmr();
 	ticks++;
 
-	if (_nic->poll(_nic, 0))
+	if ((p = _nic->recv(_nic)) != NULL)
 	{
-		_nic->packet = pkt;
-		_nic->poll(_nic, 1);
-		
-		len = _nic->packetlen;
-		
-		outputf("NIC: Packet: %d bytes", len);
+		outputf("NIC: Packet: %d bytes", p->tot_len);
 			
-		p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
-		if (p == NULL)
-		{
-			outputf("NIC: out of memory for packet?");
-			LINK_STATS_INC(link.memerr);
-			LINK_STATS_INC(link.drop);
-			return;
-		}
-	
-		for(q = p; q != NULL; q = q->next)
-		{
-			memcpy(q->payload, pkt+pos, q->len);
-			pos += q->len;
-		}
-		
 		LINK_STATS_INC(link.recv);
 		
 		ethhdr = p->payload;
