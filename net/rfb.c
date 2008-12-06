@@ -164,8 +164,7 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 			break;
 		}
 	
-		/* potential FALL THROUGH */
-
+		/* FALL THROUGH to SST_NEEDS_UPDATE*/
 	case SST_NEEDS_UPDATE:
 		outputf("RFB send: sending header");
 		/* Send a header */
@@ -182,12 +181,9 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 		state->update_pos = 0;
 		state->send_state = SST_SENDING;
 
-		/* FALL THROUGH */
-
+		/* FALL THROUGH to SST_SENDING*/
 	case SST_SENDING:
 		while (1) {
-			unsigned char mbuf[8192	/* XXX magic */];
-			
 			left = state->frame_bytes - state->update_pos;
 
 			if (left == 0) {
@@ -195,21 +191,21 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 				break;
 			}
 			
-			if (left > 8192)
+			if (left > 8192)	/* Sounds good enough to me. */
 				left = 8192;
 
-			memcpy(mbuf, fb->fbaddr + state->update_pos, left);	/* It's OK if it becomes smaller later. */
-			
 			sndlength = left;
 			do {
-				err = tcp_write(pcb, mbuf, sndlength, TCP_WRITE_FLAG_COPY /* This is my memory on the stack, thank you very much. */);
+				err = tcp_write(pcb, fb->fbaddr + state->update_pos, sndlength, TCP_WRITE_FLAG_COPY /* The card can't DMA from there. */);
 				if (err == ERR_MEM)		/* Back down until lwip says we've got space. */
 					sndlength /= 2;
 			} while (err == ERR_MEM && sndlength > 1);
 
 			if (err != ERR_OK) {
+				if (err != ERR_MEM)
+					outputf("RFB: send error %d", err);
+				
 				/* We'll just give up for now and come back when we have space later. */
-				//outputf("RFB: send error %d", err);
 				break;
 			}
 
@@ -224,9 +220,7 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 	}
 	
 	if (tcp_output(pcb) != ERR_OK)
-	{
 		outputf("RFB: tcp_output bailed in send_fsm?");
-	}
 }
 
 static err_t rfb_sent(void *arg, struct tcp_pcb *pcb, uint16_t len) {
@@ -344,7 +338,6 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 			for (i = 0; i < ntohs(req->num); i++) {
 				outputf("RFB: Encoding: %d", ntohl(req->encodings[i]));
 				/* XXX ... */
-
 			}
 
 			state->readpos += pktsize;
