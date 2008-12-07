@@ -238,15 +238,20 @@ typedef struct {
 
 static nic_3c90x_t _nic;
 
-#define _outl(v,a) outl((a),(v))
-#define _outw(v,a) outw((a),(v))
-#define _outb(v,a) outb((a),(v))
+#define _inb(n,a) (inb((n)->ioaddr + (a)))
+#define _inw(n,a) (inw((n)->ioaddr + (a)))
+#define _inl(n,a) (inl((n)->ioaddr + (a)))
+
+#define _outb(n,a,d) (outb((n)->ioaddr + (a), (d)))
+#define _outw(n,a,d) (outw((n)->ioaddr + (a), (d)))
+#define _outl(n,a,d) (outl((n)->ioaddr + (a), (d)))
+
 
 static int _issue_command(nic_3c90x_t *nic, int cmd, int param)
 {
-	outw(nic->ioaddr + regCommandIntStatus_w, (cmd << 11) | param);
+	_outw(nic, regCommandIntStatus_w, (cmd << 11) | param);
 
-	while (inw(nic->ioaddr + regCommandIntStatus_w) & INT_CMDINPROGRESS)
+	while (_inw(nic, regCommandIntStatus_w) & INT_CMDINPROGRESS)
 		;
 
 	return 0;
@@ -284,13 +289,13 @@ _read_eeprom(nic_3c90x_t *nic, int address)
         	for (i = 0; i < 165; i++)
         		inb(0x80);	/* wait 165 usec */
         }
-	while(0x8000 & inw(nic->ioaddr + regEepromCommand_0_w));
+	while(0x8000 & _inw(nic, regEepromCommand_0_w));
 
 	/** Read the value. **/
 	if (nic->is3c556)
-		_outw(address + (0x230), nic->ioaddr + regEepromCommand_0_w);
+		_outw(nic, regEepromCommand_0_w, address + 0x230);
 	else
-		_outw(address + 0x80, nic->ioaddr + regEepromCommand_0_w);
+		_outw(nic, regEepromCommand_0_w, address + 0x80);
 
 	do
 	{
@@ -298,8 +303,8 @@ _read_eeprom(nic_3c90x_t *nic, int address)
 		for (i = 0; i < 165; i++)
 			inb(0x80);	/* wait 165 usec */
 	}
-	while(0x8000 & inw(nic->ioaddr + regEepromCommand_0_w));
-	val = inw(nic->ioaddr + regEepromData_0_w);
+	while(0x8000 & _inw(nic, regEepromCommand_0_w));
+	val = _inw(nic, regEepromData_0_w);
 	
 	return val;
 }
@@ -322,14 +327,14 @@ static void _reset(nic_3c90x_t *nic)
      ** require explicit reset of values
      **/
     _set_window(nic, winAddressing2);
-    _outw(0, nic->ioaddr + regStationMask_2_3w+0);
-    _outw(0, nic->ioaddr + regStationMask_2_3w+2);
-    _outw(0, nic->ioaddr + regStationMask_2_3w+4);
+    _outw(nic, regStationMask_2_3w+0, 0);
+    _outw(nic, regStationMask_2_3w+2, 0);
+    _outw(nic, regStationMask_2_3w+4, 0);
 
     /** Issue transmit reset, wait for command completion **/
     _issue_command(nic, cmdTxReset, 0);
     if (!nic->isBrev)
-	_outb(0x01, nic->ioaddr + regTxFreeThresh_b);
+	_outb(nic, regTxFreeThresh_b, 0x01);
     _issue_command(nic, cmdTxEnable, 0);
 
     /**
@@ -383,7 +388,7 @@ static void _transmit(struct nic *_nic, struct pbuf *p)
 		int i = 0;
 		
 		outputf("3c90x: txbuf full, waiting for space...");
-		while (inl(nic->ioaddr + regDnListPtr_l) != 0)
+		while (_inl(nic, regDnListPtr_l) != 0)
 			i++;
 		outputf("3c90x: took %d iters", i);
 	}
@@ -394,7 +399,7 @@ static void _transmit(struct nic *_nic, struct pbuf *p)
 	/* Clean up old txcons. */
 	if (txcons != -1)
 	{
-		unsigned long curp = inl(nic->ioaddr + regDnListPtr_l);
+		unsigned long curp = _inl(nic, regDnListPtr_l);
 		int end;
 		
 		if (curp == 0)
@@ -415,11 +420,11 @@ static void _transmit(struct nic *_nic, struct pbuf *p)
 	}
 	
 	/* Look at the TX status */
-	status = inb(nic->ioaddr + regTxStatus_b);
+	status = _inb(nic, regTxStatus_b);
 	if (status)
 	{
 		outputf("3c90x: error: the nus.");
-		outb(nic->ioaddr + regTxStatus_b, 0x00);
+		_outb(nic, regTxStatus_b, 0x00);
 	}
 
 	/* Set up the new txdesc. */
@@ -441,9 +446,9 @@ static void _transmit(struct nic *_nic, struct pbuf *p)
 	txdescs[(txprod + XMIT_BUFS - 1) % XMIT_BUFS].next = v2p(&(txdescs[txprod]));
 	
 	/* If the card is stopped, start it up again. */
-	if (inl(nic->ioaddr + regDnListPtr_l) == 0)
+	if (_inl(nic, regDnListPtr_l) == 0)
 	{
-		outl(nic->ioaddr + regDnListPtr_l, v2p(&(txdescs[txprod])));
+		_outl(nic, regDnListPtr_l, v2p(&(txdescs[txprod])));
 		txcons = txprod;
 	}
 	
@@ -466,7 +471,7 @@ static void _transmit(struct nic *_nic, struct pbuf *p)
 	} else if (status & 0x04) {
 		outputf("3c90x: Tx Status Overflow (%hhX)", status);
 		for (i=0; i<32; i++)
-			_outb(0x00, nic->ioaddr + regTxStatus_b);
+			_outb(nic, regTxStatus_b, 0x00);
 		/** must re-enable after max collisions before re-issuing tx **/
 		_issue_command(nic, cmdTxEnable, 0);
 	} else if (status & 0x08) {
@@ -542,9 +547,9 @@ static void _recv_prepare(nic_3c90x_t *nic)
 		rxprod = (rxprod + 1) % RECV_BUFS;
 	}
 	
-	if (inl(nic->ioaddr + regUpListPtr_l) == 0 && rxpbufs[oldprod])	/* Ran out of shit, and got new shit? */
+	if (_inl(nic, regUpListPtr_l) == 0 && rxpbufs[oldprod])	/* Ran out of shit, and got new shit? */
 	{
-		outl(nic->ioaddr + regUpListPtr_l, v2p(&rxdescs[oldprod]));
+		_outl(nic, regUpListPtr_l, v2p(&rxdescs[oldprod]));
 		outputf("3c90x: WARNING: Ran out of rx slots");
 	}
 	
@@ -689,13 +694,13 @@ static int _probe(struct pci_dev *pci, void *data)
 	/** 3C556: Invert MII power **/
 	if (nic->is3c556) {
 		_set_window(nic, winAddressing2);
-		outw(nic->ioaddr + regResetOptions_2_w,
-			inw(nic->ioaddr + regResetOptions_2_w) | 0x4000);
+		_outw(nic, regResetOptions_2_w,
+			_inw(nic, regResetOptions_2_w) | 0x4000);
 	}
 
 	/* Test if the link is good; if not, bail out */
 	_set_window(nic, winDiagnostics4);
-	mstat = inw(nic->ioaddr + regMediaStatus_4_w);
+	mstat = _inw(nic, regMediaStatus_4_w);
 	if((mstat & (1<<11)) == 0) {
 		outputf("3c90x: valid link not established");
 		return 0;
@@ -703,12 +708,12 @@ static int _probe(struct pci_dev *pci, void *data)
 
 	/* Program the MAC address into the station address registers */
 	_set_window(nic, winAddressing2);
-	outw(nic->ioaddr + regStationAddress_2_3w, htons(eeprom[HWADDR_OFFSET + 0]));
-	outw(nic->ioaddr + regStationAddress_2_3w+2, htons(eeprom[HWADDR_OFFSET + 1]));
-	outw(nic->ioaddr + regStationAddress_2_3w+4, htons(eeprom[HWADDR_OFFSET + 2]));
-	outw(nic->ioaddr + regStationMask_2_3w+0, 0);
-	outw(nic->ioaddr + regStationMask_2_3w+2, 0);
-	outw(nic->ioaddr + regStationMask_2_3w+4, 0);
+	_outw(nic, regStationAddress_2_3w, htons(eeprom[HWADDR_OFFSET + 0]));
+	_outw(nic, regStationAddress_2_3w+2, htons(eeprom[HWADDR_OFFSET + 1]));
+	_outw(nic, regStationAddress_2_3w+4, htons(eeprom[HWADDR_OFFSET + 2]));
+	_outw(nic, regStationMask_2_3w+0, 0);
+	_outw(nic, regStationMask_2_3w+2, 0);
+	_outw(nic, regStationMask_2_3w+4, 0);
 
 	/** Read the media options register, print a message and set default
 	 ** xcvr.
@@ -717,7 +722,7 @@ static int _probe(struct pci_dev *pci, void *data)
 	 ** revision cards -- same register address
 	 **/
 	_set_window(nic, winTxRxOptions3);
-	mopt = inw(nic->ioaddr + regResetMediaOptions_3_w);
+	mopt = _inw(nic, regResetMediaOptions_3_w);
 
 	/** mask out VCO bit that is defined as 10baseFL bit on B-rev cards **/
 	if (!nic->isBrev)
@@ -781,15 +786,15 @@ static int _probe(struct pci_dev *pci, void *data)
 
 	/** Set the link to the type we just determined. **/
 	_set_window(nic, winTxRxOptions3);
-	cfg = inl(nic->ioaddr + regInternalConfig_3_l);
+	cfg = _inl(nic, regInternalConfig_3_l);
 	cfg &= ~(0xF<<20);
 	cfg |= (linktype<<20);
-	outl(nic->ioaddr + regInternalConfig_3_l, cfg);
+	_outl(nic, regInternalConfig_3_l, cfg);
 
 	/* Reset and turn on the transmit engine. */
 	_issue_command(nic, cmdTxReset, 0);
 	if (!nic->isBrev)
-		_outb(0x01, nic->ioaddr + regTxFreeThresh_b);
+		_outb(nic, regTxFreeThresh_b, 0x01);
 	_issue_command(nic, cmdTxEnable, 0);
 
 	/* Reset and turn on the receive engine. */
