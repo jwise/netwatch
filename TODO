@@ -16,3 +16,5 @@ To do list:
     as pass 1 -- later it can use the PCI scan)
 [ ] Synchronize headers
 [ ] Fix build system...
+[ ] Something has gone very wrong with the receive ring buffer, and on
+    occasion, the machine stops receiving forever.

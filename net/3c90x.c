@@ -249,7 +249,6 @@ static struct
     INF_3C90X;
 
 static struct nic nic;
-static txdesc_t txdesc;
 
 #define _outl(v,a) outl((a),(v))
 #define _outw(v,a) outw((a),(v))
@@ -442,69 +441,104 @@ static void a3c90x_reset(void)
     return;
     }
 
+/***************************** Transmit routines *****************************/
 
+#define XMIT_BUFS 8
 
-/*** a3c90x_transmit: exported function that transmits a packet.  Does not
- *** return any particular status.  Parameters are:
- *** dest_addr[6] - destination address, ethernet;
- *** proto - protocol type (ARP, IP, etc);
- *** size - size of the non-header part of the packet that needs transmitted;
- *** pkt - the pointer to the packet data itself.
- ***/
+static txdesc_t txdescs[XMIT_BUFS];
+static struct pbuf *txpbufs[XMIT_BUFS] = {0,};
+
+/* txcons is the index into the ring buffer of the last packet that the
+ * 3c90x was seen processing, or -1 if the 3c90x was idle.
+ */
+static int txcons = -1;
+
+/* txprod is the index of the _next_ buffer that the driver will write into. */
+static int txprod = 0;
+
+/* _transmit adds a packet to the transmit ring buffer.  If no space is
+ * available in the buffer, then _transmit blocks until a packet has been
+ * transmitted.
+ */
 static void _transmit(struct pbuf *p)
 {
 	unsigned char status;
-	static struct pbuf *oldpbuf = NULL;
-	unsigned int n, len;
+	int len, n;
 	
-	if (oldpbuf)
+	/* Wait for there to be space. */
+	if (txcons == txprod)
 	{
 		int i = 0;
-		while (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE) && oneshot_running())
+		
+		outputf("3c90x: txbuf full, waiting for space...");
+		while (inl(INF_3C90X.IOAddr + regDnListPtr_l) != 0)
 			i++;
-		if (i)
-			outputf("3c90x: had to wait %d loops to tx", i);
-		if (!(inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_TXCOMPLETE))
+		outputf("3c90x: took %d iters", i);
+	}
+	
+	/* Stall the download engine so it doesn't bother us. */
+	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 2 /* Stall download */);
+	
+	/* Clean up old txcons. */
+	if (txcons != -1)
+	{
+		unsigned long curp = inl(INF_3C90X.IOAddr + regDnListPtr_l);
+		int end;
+		
+		if (curp == 0)
+			end = txprod;
+		else
+			end = (curp - v2p(txdescs)) / sizeof(txdescs[0]);
+		
+		while (txcons != end)
 		{
-			outputf("3c90x: tx timeout? txstat %02x", inb(INF_3C90X.IOAddr + regTxStatus_b));
-			outputf("3c90x: Gen sts %04x", inw(INF_3C90X.IOAddr + regCommandIntStatus_w));
+			pbuf_free(txpbufs[txcons]);
+			txpbufs[txcons] = NULL;
+			txdescs[txcons].hdr = 0;
+			txdescs[txcons].next = 0;
+			txcons = (txcons + 1) % XMIT_BUFS;
 		}
-		status = inb(INF_3C90X.IOAddr + regTxStatus_b);
+		if (txcons == txprod)
+			txcons = -1;
+	}
+	
+	/* Look at the TX status */
+	status = inb(INF_3C90X.IOAddr + regTxStatus_b);
+	if (status)
+	{
+		outputf("3c90x: error: the nus.");
 		outb(INF_3C90X.IOAddr + regTxStatus_b, 0x00);
-		pbuf_free(oldpbuf);
-		oldpbuf = NULL;
 	}
 
-	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 2 /* Stall download */);
-
-	/** Setup the DPD (download descriptor) **/
-	txdesc.next = 0;
+	/* Set up the new txdesc. */
+	txdescs[txprod].next = 0;
 	len = 0;
 	n = 0;
-	oldpbuf = p;
+	txpbufs[txprod] = p;
 	for (; p; p = p->next)
 	{
-		txdesc.segments[n].addr = v2p(p->payload);
-		txdesc.segments[n].len = p->len | (p->next ? 0 : (1 << 31));
+		txdescs[txprod].segments[n].addr = v2p(p->payload);
+		txdescs[txprod].segments[n].len = p->len | (p->next ? 0 : (1 << 31));
 		len += p->len;
 		pbuf_ref(p);
 		n++;
 	}
-	/** set notification for transmission completion (bit 15) **/
-	txdesc.hdr = (len) | 0x8000;
+	txdescs[txprod].hdr = len;	/* If we wanted completion notification, bit 15 */
 	
-	/** Send the packet **/
-	outl(INF_3C90X.IOAddr + regDnListPtr_l, v2p(&txdesc));
-	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 3 /* Unstall download */);
-		
-	oneshot_start_ms(10);
-	while((inl(INF_3C90X.IOAddr + regDnListPtr_l) != 0) && oneshot_running())
-		;
-	if (!oneshot_running())
+	/* Now link the new one in, after it's been set up. */
+	txdescs[(txprod + XMIT_BUFS - 1) % XMIT_BUFS].next = v2p(&(txdescs[txprod]));
+	
+	/* If the card is stopped, start it up again. */
+	if (inl(INF_3C90X.IOAddr + regDnListPtr_l) == 0)
 	{
-		outputf("3c90x: Download engine pointer timeout");
-		return;
+		outl(INF_3C90X.IOAddr + regDnListPtr_l, v2p(&(txdescs[txprod])));
+		txcons = txprod;
 	}
+	
+	txprod = (txprod + 1) % XMIT_BUFS;
+	
+	/* And let it proceed on its way. */
+	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 3 /* Unstall download */);
 
 #if 0		
 	/** successful completion (sans "interrupt Requested" bit) **/
@@ -542,10 +576,10 @@ static void _transmit(struct pbuf *p)
 
 /***************************** Receive routines *****************************/
 #define MAX_RECV_SIZE 1536
-#define RECV_BUFS 4
+#define RECV_BUFS 16
 
 static rxdesc_t rxdescs[RECV_BUFS];
-static struct pbuf *pbufs[RECV_BUFS] = {0,};
+static struct pbuf *rxpbufs[RECV_BUFS] = {0,};
 
 /* rxcons is the pointer to the receive descriptor that the ethernet card will
  * write into next.
@@ -565,16 +599,16 @@ static void _recv_prepare(struct nic *nic)
 	int oldprod;
 
 	oldprod = rxprod;
-	while ((rxprod != rxcons) || !pbufs[rxprod])
+	while ((rxprod != rxcons) || !rxpbufs[rxprod])
 	{
 		int i;
 		struct pbuf *p;
 		
-		if (!pbufs[rxprod])
-			pbufs[rxprod] = p = pbuf_alloc(PBUF_RAW, MAX_RECV_SIZE, PBUF_POOL);
+		if (!rxpbufs[rxprod])
+			rxpbufs[rxprod] = p = pbuf_alloc(PBUF_RAW, MAX_RECV_SIZE, PBUF_POOL);
 		else {
 			outputf("WARNING: 3c90x has pbuf in slot %d", rxprod);
-			p = pbufs[rxprod];
+			p = rxpbufs[rxprod];
 		}
 		
 		if (!p)
@@ -596,7 +630,7 @@ static void _recv_prepare(struct nic *nic)
 		rxprod = (rxprod + 1) % RECV_BUFS;
 	}
 	
-	if (inl(INF_3C90X.IOAddr + regUpListPtr_l) == 0 && pbufs[oldprod])	/* Ran out of shit, and got new shit? */
+	if (inl(INF_3C90X.IOAddr + regUpListPtr_l) == 0 && rxpbufs[oldprod])	/* Ran out of shit, and got new shit? */
 	{
 		outl(INF_3C90X.IOAddr + regUpListPtr_l, v2p(&rxdescs[oldprod]));
 		outputf("3c90x: WARNING: Ran out of rx slots");
@@ -635,13 +669,13 @@ static int _recv(struct nic *nic)
 				outputf("3C90X: Packet error (%hX)",errcode>>16);
 		
 			p = NULL;	
-			pbuf_free(pbufs[rxcons]);		/* Bounce the old one before setting it up again. */
+			pbuf_free(rxpbufs[rxcons]);		/* Bounce the old one before setting it up again. */
 		} else {
-			p = pbufs[rxcons];
+			p = rxpbufs[rxcons];
 			pbuf_realloc(p, rxdescs[rxcons].status & 0x1FFF);	/* Resize the packet to how large it actually is. */
 		}
 		
-		pbufs[rxcons] = NULL;
+		rxpbufs[rxcons] = NULL;
 		rxdescs[rxcons].status = 0; 
 		rxcons = (rxcons + 1) % RECV_BUFS;
 		
