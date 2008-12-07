@@ -74,7 +74,7 @@ void outlog()
 	int y;
 
 	for (y = -LOG_ONSCREEN; y < 0; y++)
-		strblit(logents[(y + prodptr) % LOGLEN], y + LOG_ONSCREEN, 40, 1);
+		strblit(logents[(y + prodptr + LOGLEN) % LOGLEN], y + LOG_ONSCREEN, 40, 1);
 }
 
 void dolog(const char *s)
@@ -112,4 +112,3 @@ void (*outputf)(const char *s, ...) = dologf;
 void dump_log (char * target) {
 	memcpy(target, logents, sizeof(logents));
 }
-
