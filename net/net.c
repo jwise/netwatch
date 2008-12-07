@@ -83,7 +83,7 @@ static err_t _transmit(struct netif *netif, struct pbuf *p)
 
 //	outputf("NIC: Transmit packet");
 
-	nic->transmit(p);
+	nic->transmit(nic, p);
 
 	LINK_STATS_INC(link.xmit);
 

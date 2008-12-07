@@ -228,28 +228,25 @@ typedef struct {
 	segment_t segments[64];
 } rxdesc_t __attribute__ ((aligned(8)));
 
-/*** Global variables ***/
-static struct
-    {
-    unsigned int	is3c556;
-    unsigned char	isBrev;
-    unsigned char	CurrentWindow;
-    unsigned int	IOAddr;
-    unsigned char	HWAddr[ETH_ALEN];
-    }
-    INF_3C90X;
+typedef struct {
+	struct nic nic;
+	int is3c556;
+	int isBrev;
+	int curwnd;
+	int ioaddr;
+} nic_3c90x_t;
 
-static struct nic nic;
+static nic_3c90x_t _nic;
 
 #define _outl(v,a) outl((a),(v))
 #define _outw(v,a) outw((a),(v))
 #define _outb(v,a) outb((a),(v))
 
-static int _issue_command(int ioaddr, int cmd, int param)
+static int _issue_command(nic_3c90x_t *nic, int cmd, int param)
 {
-	outw(ioaddr + regCommandIntStatus_w, (cmd << 11) | param);
+	outw(nic->ioaddr + regCommandIntStatus_w, (cmd << 11) | param);
 
-	while (inw(ioaddr + regCommandIntStatus_w) & INT_CMDINPROGRESS)
+	while (inw(nic->ioaddr + regCommandIntStatus_w) & INT_CMDINPROGRESS)
 		;
 
 	return 0;
@@ -258,27 +255,27 @@ static int _issue_command(int ioaddr, int cmd, int param)
 
 /*** a3c90x_internal_SetWindow: selects a register window set.
  ***/
-static int _set_window(int ioaddr, int window)
+static int _set_window(nic_3c90x_t *nic, int window)
 {
-	if (INF_3C90X.CurrentWindow == window)
+	if (nic->curwnd == window)
 		return 0;
 
-	_issue_command(ioaddr, cmdSelectRegisterWindow, window);
-	INF_3C90X.CurrentWindow = window;
+	_issue_command(nic, cmdSelectRegisterWindow, window);
+	nic->curwnd = window;
 
 	return 0;
 }
 
 
-/*** a3c90x_internal_ReadEeprom - read data from the serial eeprom.
+/*** _read_eeprom - read data from the serial eeprom.
  ***/
 static unsigned short
-a3c90x_internal_ReadEeprom(int ioaddr, int address)
+_read_eeprom(nic_3c90x_t *nic, int address)
 {
 	unsigned short val;
 
 	/** Select correct window **/
-        _set_window(INF_3C90X.IOAddr, winEepromBios0);
+        _set_window(nic, winEepromBios0);
 
 	/** Make sure the eeprom isn't busy **/
 	do
@@ -287,13 +284,13 @@ a3c90x_internal_ReadEeprom(int ioaddr, int address)
         	for (i = 0; i < 165; i++)
         		inb(0x80);	/* wait 165 usec */
         }
-	while(0x8000 & inw(ioaddr + regEepromCommand_0_w));
+	while(0x8000 & inw(nic->ioaddr + regEepromCommand_0_w));
 
 	/** Read the value. **/
-	if (INF_3C90X.is3c556)
-		_outw(address + (0x230), ioaddr + regEepromCommand_0_w);
+	if (nic->is3c556)
+		_outw(address + (0x230), nic->ioaddr + regEepromCommand_0_w);
 	else
-		_outw(address + 0x80, ioaddr + regEepromCommand_0_w);
+		_outw(address + 0x80, nic->ioaddr + regEepromCommand_0_w);
 
 	do
 	{
@@ -301,59 +298,59 @@ a3c90x_internal_ReadEeprom(int ioaddr, int address)
 		for (i = 0; i < 165; i++)
 			inb(0x80);	/* wait 165 usec */
 	}
-	while(0x8000 & inw(ioaddr + regEepromCommand_0_w));
-	val = inw(ioaddr + regEepromData_0_w);
+	while(0x8000 & inw(nic->ioaddr + regEepromCommand_0_w));
+	val = inw(nic->ioaddr + regEepromData_0_w);
 	
 	return val;
 }
 
 
+#if 0
 /*** a3c90x_reset: exported function that resets the card to its default
  *** state.  This is so the Linux driver can re-set the card up the way
  *** it wants to.  If CFG_3C90X_PRESERVE_XCVR is defined, then the reset will
  *** not alter the selected transceiver that we used to download the boot
  *** image.
  ***/
-static void a3c90x_reset(void)
-    {
+static void _reset(nic_3c90x_t *nic)
+{
     /** Send the reset command to the card **/
     outputf("3c90x: issuing RESET");
-    _issue_command(INF_3C90X.IOAddr, cmdGlobalReset, 0);
+    _issue_command(nic, cmdGlobalReset, 0);
 
     /** global reset command resets station mask, non-B revision cards
      ** require explicit reset of values
      **/
-    _set_window(INF_3C90X.IOAddr, winAddressing2);
-    _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+0);
-    _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+2);
-    _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+4);
+    _set_window(nic, winAddressing2);
+    _outw(0, nic->ioaddr + regStationMask_2_3w+0);
+    _outw(0, nic->ioaddr + regStationMask_2_3w+2);
+    _outw(0, nic->ioaddr + regStationMask_2_3w+4);
 
     /** Issue transmit reset, wait for command completion **/
-    _issue_command(INF_3C90X.IOAddr, cmdTxReset, 0);
-    if (! INF_3C90X.isBrev)
-	_outb(0x01, INF_3C90X.IOAddr + regTxFreeThresh_b);
-    _issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
+    _issue_command(nic, cmdTxReset, 0);
+    if (!nic->isBrev)
+	_outb(0x01, nic->ioaddr + regTxFreeThresh_b);
+    _issue_command(nic, cmdTxEnable, 0);
 
     /**
      ** reset of the receiver on B-revision cards re-negotiates the link
      ** takes several seconds (a computer eternity)
      **/
-    if (INF_3C90X.isBrev)
-	_issue_command(INF_3C90X.IOAddr, cmdRxReset, 0x04);
+    if (nic->isBrev)
+	_issue_command(nic, cmdRxReset, 0x04);
     else
-	_issue_command(INF_3C90X.IOAddr, cmdRxReset, 0x00);
-    while (inw(INF_3C90X.IOAddr + regCommandIntStatus_w) & INT_CMDINPROGRESS)
-       ;
-    _issue_command(INF_3C90X.IOAddr, cmdRxEnable, 0);
+	_issue_command(nic, cmdRxReset, 0x00);
+    _issue_command(nic, cmdRxEnable, 0);
 
-    _issue_command(INF_3C90X.IOAddr, cmdSetInterruptEnable, 0);
+    _issue_command(nic, cmdSetInterruptEnable, 0);
     /** enable rxComplete and txComplete **/
-    _issue_command(INF_3C90X.IOAddr, cmdSetIndicationEnable, 0x0014);
+    _issue_command(nic, cmdSetIndicationEnable, 0x0014);
     /** acknowledge any pending status flags **/
-    _issue_command(INF_3C90X.IOAddr, cmdAcknowledgeInterrupt, 0x661);
+    _issue_command(nic, cmdAcknowledgeInterrupt, 0x661);
 
     return;
-    }
+}
+#endif
 
 /***************************** Transmit routines *****************************/
 
@@ -374,8 +371,9 @@ static int txprod = 0;
  * available in the buffer, then _transmit blocks until a packet has been
  * transmitted.
  */
-static void _transmit(struct pbuf *p)
+static void _transmit(struct nic *_nic, struct pbuf *p)
 {
+	nic_3c90x_t *nic = (nic_3c90x_t *)_nic;
 	unsigned char status;
 	int len, n;
 	
@@ -385,18 +383,18 @@ static void _transmit(struct pbuf *p)
 		int i = 0;
 		
 		outputf("3c90x: txbuf full, waiting for space...");
-		while (inl(INF_3C90X.IOAddr + regDnListPtr_l) != 0)
+		while (inl(nic->ioaddr + regDnListPtr_l) != 0)
 			i++;
 		outputf("3c90x: took %d iters", i);
 	}
 	
 	/* Stall the download engine so it doesn't bother us. */
-	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 2 /* Stall download */);
+	_issue_command(nic, cmdStallCtl, 2 /* Stall download */);
 	
 	/* Clean up old txcons. */
 	if (txcons != -1)
 	{
-		unsigned long curp = inl(INF_3C90X.IOAddr + regDnListPtr_l);
+		unsigned long curp = inl(nic->ioaddr + regDnListPtr_l);
 		int end;
 		
 		if (curp == 0)
@@ -417,11 +415,11 @@ static void _transmit(struct pbuf *p)
 	}
 	
 	/* Look at the TX status */
-	status = inb(INF_3C90X.IOAddr + regTxStatus_b);
+	status = inb(nic->ioaddr + regTxStatus_b);
 	if (status)
 	{
 		outputf("3c90x: error: the nus.");
-		outb(INF_3C90X.IOAddr + regTxStatus_b, 0x00);
+		outb(nic->ioaddr + regTxStatus_b, 0x00);
 	}
 
 	/* Set up the new txdesc. */
@@ -443,16 +441,16 @@ static void _transmit(struct pbuf *p)
 	txdescs[(txprod + XMIT_BUFS - 1) % XMIT_BUFS].next = v2p(&(txdescs[txprod]));
 	
 	/* If the card is stopped, start it up again. */
-	if (inl(INF_3C90X.IOAddr + regDnListPtr_l) == 0)
+	if (inl(nic->ioaddr + regDnListPtr_l) == 0)
 	{
-		outl(INF_3C90X.IOAddr + regDnListPtr_l, v2p(&(txdescs[txprod])));
+		outl(nic->ioaddr + regDnListPtr_l, v2p(&(txdescs[txprod])));
 		txcons = txprod;
 	}
 	
 	txprod = (txprod + 1) % XMIT_BUFS;
 	
 	/* And let it proceed on its way. */
-	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 3 /* Unstall download */);
+	_issue_command(nic, cmdStallCtl, 3 /* Unstall download */);
 
 #if 0		
 	/** successful completion (sans "interrupt Requested" bit) **/
@@ -464,26 +462,26 @@ static void _transmit(struct pbuf *p)
 	if (status & 0x02)
 	{
 		outputf("3c90x: Tx Reclaim Error (%hhX)", status);
-		a3c90x_reset();
+		_reset(nic);
 	} else if (status & 0x04) {
 		outputf("3c90x: Tx Status Overflow (%hhX)", status);
 		for (i=0; i<32; i++)
-			_outb(0x00, INF_3C90X.IOAddr + regTxStatus_b);
+			_outb(0x00, nic->ioaddr + regTxStatus_b);
 		/** must re-enable after max collisions before re-issuing tx **/
-		_issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
+		_issue_command(nic, cmdTxEnable, 0);
 	} else if (status & 0x08) {
 		outputf("3c90x: Tx Max Collisions (%hhX)", status);
 		/** must re-enable after max collisions before re-issuing tx **/
-		_issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
+		_issue_command(nic, cmdTxEnable, 0);
 	} else if (status & 0x10) {
 		outputf("3c90x: Tx Underrun (%hhX)", status);
-		a3c90x_reset();
+		_reset(nic);
 	} else if (status & 0x20) {
 		outputf("3c90x: Tx Jabber (%hhX)", status);
-		a3c90x_reset();
+		_reset(nic);
 	} else if ((status & 0x80) != 0x80) {
 		outputf("3c90x: Internal Error - Incomplete Transmission (%hhX)", status);
-		a3c90x_reset();
+		_reset(nic);
 	}
 #endif
 }
@@ -508,7 +506,7 @@ static int rxprod = 0;
 /* _recv_prepare fills the 3c90x's ring buffer with fresh pbufs from lwIP.
  * The upload engine need not be stalled.
  */
-static void _recv_prepare(struct nic *nic)
+static void _recv_prepare(nic_3c90x_t *nic)
 {
 	int oldprod;
 
@@ -544,13 +542,13 @@ static void _recv_prepare(struct nic *nic)
 		rxprod = (rxprod + 1) % RECV_BUFS;
 	}
 	
-	if (inl(INF_3C90X.IOAddr + regUpListPtr_l) == 0 && rxpbufs[oldprod])	/* Ran out of shit, and got new shit? */
+	if (inl(nic->ioaddr + regUpListPtr_l) == 0 && rxpbufs[oldprod])	/* Ran out of shit, and got new shit? */
 	{
-		outl(INF_3C90X.IOAddr + regUpListPtr_l, v2p(&rxdescs[oldprod]));
+		outl(nic->ioaddr + regUpListPtr_l, v2p(&rxdescs[oldprod]));
 		outputf("3c90x: WARNING: Ran out of rx slots");
 	}
 	
-	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 1 /* Unstall upload */);
+	_issue_command(nic, cmdStallCtl, 1 /* Unstall upload */);
 }
 
 /* _recv polls the ring buffer to see if any packets are available.  If any 
@@ -558,8 +556,9 @@ static void _recv_prepare(struct nic *nic)
  * packets it received successfully.  Whether _recv got any packets or not,
  * _recv does not block, and reinitializes the ring buffer with fresh pbufs.
  */
-static int _recv(struct nic *nic)
+static int _recv(struct nic *_nic)
 {
+	nic_3c90x_t *nic = (nic_3c90x_t *)_nic;
 	int errcode, n = 0;
 	struct pbuf *p;
 	
@@ -596,7 +595,7 @@ static int _recv(struct nic *nic)
 		
 		if (p)
 		{
-			eth_recv(nic, p);
+			eth_recv(_nic, p);
 			n++;
 		}
 	}
@@ -605,70 +604,54 @@ static int _recv(struct nic *nic)
 	return n;
 }
 
-/*** a3c90x_disable: exported routine to disable the card.  What's this for?
- *** the eepro100.c driver didn't have one, so I just left this one empty too.
- *** Ideas anyone?
- *** Must turn off receiver at least so stray packets will not corrupt memory
- *** [Ken]
- ***/
-void a3c90x_disable(struct dev *dev)
-{
-	/* reset and disable merge */
-	a3c90x_reset();
-	/* Disable the receiver and transmitter. */
-	_outw(cmdRxDisable, INF_3C90X.IOAddr + regCommandIntStatus_w);
-	_outw(cmdTxDisable, INF_3C90X.IOAddr + regCommandIntStatus_w);
-}
-
-
 /*** a3c90x_probe: exported routine to probe for the 3c905 card and perform
  *** initialization.  If this routine is called, the pci functions did find the
  *** card.  We just have to init it here.
  ***/
-static int a3c90x_probe(struct pci_dev * pci, void * data)
+static int _probe(struct pci_dev *pci, void *data)
 {
-    INF_3C90X.is3c556 = (pci->did == 0x6055);
- 
-    int i, c;
-    unsigned short eeprom[0x100];
-    unsigned int cfg;
-    unsigned int mopt;
-    unsigned int mstat;
-    unsigned short linktype;
+	nic_3c90x_t *nic = &_nic;
+	int i, c;
+	unsigned short eeprom[0x100];
+	unsigned int cfg;
+	unsigned int mopt;
+	unsigned int mstat;
+	unsigned short linktype;
 #define	HWADDR_OFFSET	10
 
-    unsigned long ioaddr = 0;
-    for (i = 0; i < 6; i++) {
-        if (pci->bars[i].type == PCI_BAR_IO) {
-            ioaddr = pci->bars[i].addr;
-            break;
-        }
-    }
-
-    if (ioaddr == 0)
-    {
-        outputf("3c90x: Unable to find I/O address");
-        return 0;
-    }
+	unsigned long ioaddr = 0;
+	for (i = 0; i < 6; i++)
+		if (pci->bars[i].type == PCI_BAR_IO)
+		{
+			ioaddr = pci->bars[i].addr;
+			break;
+		}
+		
+	if (ioaddr == 0)
+	{
+		outputf("3c90x: Unable to find I/O address");
+		return 0;
+	}
     
-    /* Power it on */
-    pci_write16(pci->bus, pci->dev, pci->fn, 0xE0,
-    	pci_read16(pci->bus, pci->dev, pci->fn, 0xE0) & ~0x3);
-    
-    outputf("3c90x: Picked I/O address %04x", ioaddr);
-    pci_bother_add(pci);
-    nic.ioaddr = ioaddr & ~3;
-    nic.irqno = 0;
+	/* Power it on */
+	pci_write16(pci->bus, pci->dev, pci->fn, 0xE0,
+		pci_read16(pci->bus, pci->dev, pci->fn, 0xE0) & ~0x3);
+	
+	outputf("3c90x: Picked I/O address %04x", ioaddr);
+	pci_bother_add(pci);
+	nic->nic.ioaddr = ioaddr & ~3;
+	nic->nic.irqno = 0;
 
-    INF_3C90X.IOAddr = ioaddr;
-    INF_3C90X.CurrentWindow = 255;
-    switch (a3c90x_internal_ReadEeprom(INF_3C90X.IOAddr, 0x03))
+	nic->ioaddr = ioaddr;
+	nic->is3c556 = (pci->did == 0x6055);
+	nic->curwnd = 255;
+	switch (_read_eeprom(nic, 0x03))
 	{
 	case 0x9000: /** 10 Base TPO             **/
 	case 0x9001: /** 10/100 T4               **/
 	case 0x9050: /** 10/100 TPO              **/
 	case 0x9051: /** 10 Base Combo           **/
-		INF_3C90X.isBrev = 0;
+		nic->isBrev = 0;
 		break;
 
 	case 0x9004: /** 10 Base TPO             **/
@@ -679,255 +662,186 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
 	case 0x9056: /** 10/100 T4               **/
 	case 0x905A: /** 10 Base FX              **/
 	default:
-		INF_3C90X.isBrev = 1;
+		nic->isBrev = 1;
 		break;
 	}
 
-    /** Load the EEPROM contents **/
-    if (INF_3C90X.isBrev)
-	{
-	for(i=0;i<=/*0x20*/0x7F;i++)
-	    {
-	    eeprom[i] = a3c90x_internal_ReadEeprom(INF_3C90X.IOAddr, i);
-	    }
-
-#ifdef	CFG_3C90X_XCVR
-	if (CFG_3C90X_XCVR == 255)
-	    {
-	    /** Clear the LanWorks register **/
-	    a3c90x_internal_WriteEeprom(INF_3C90X.IOAddr, 0x16, 0);
-	    }
+	/** Load the EEPROM contents **/
+	if (nic->isBrev)
+		for(i=0;i<=0x20;i++)
+			eeprom[i] = _read_eeprom(nic, i);
 	else
-	    {
-	    /** Set the selected permanent-xcvrSelect in the
-	     ** LanWorks register
-	     **/
-	    a3c90x_internal_WriteEeprom(INF_3C90X.IOAddr, 0x16,
-	                    XCVR_MAGIC + ((CFG_3C90X_XCVR) & 0x000F));
-	    }
-#endif
-	}
-    else
-	{
-	for(i=0;i<=/*0x17*/0x7F;i++)
-	    {
-	    eeprom[i] = a3c90x_internal_ReadEeprom(INF_3C90X.IOAddr, i);
-	    }
+		for(i=0;i<=0x17;i++)
+			eeprom[i] = _read_eeprom(nic, i);
+
+	/** Retrieve the Hardware address and print it on the screen. **/
+	nic->nic.hwaddr[0] = eeprom[HWADDR_OFFSET + 0]>>8;
+	nic->nic.hwaddr[1] = eeprom[HWADDR_OFFSET + 0]&0xFF;
+	nic->nic.hwaddr[2] = eeprom[HWADDR_OFFSET + 1]>>8;
+	nic->nic.hwaddr[3] = eeprom[HWADDR_OFFSET + 1]&0xFF;
+	nic->nic.hwaddr[4] = eeprom[HWADDR_OFFSET + 2]>>8;
+	nic->nic.hwaddr[5] = eeprom[HWADDR_OFFSET + 2]&0xFF;
+	outputf("MAC Address = %02x:%02x:%02x:%02x:%02x:%02x",
+		nic->nic.hwaddr[0], nic->nic.hwaddr[1],
+		nic->nic.hwaddr[2], nic->nic.hwaddr[3],
+		nic->nic.hwaddr[4], nic->nic.hwaddr[5]);
+
+	/** 3C556: Invert MII power **/
+	if (nic->is3c556) {
+		_set_window(nic, winAddressing2);
+		outw(nic->ioaddr + regResetOptions_2_w,
+			inw(nic->ioaddr + regResetOptions_2_w) | 0x4000);
 	}
 
-    /** Retrieve the Hardware address and print it on the screen. **/
-    INF_3C90X.HWAddr[0] = eeprom[HWADDR_OFFSET + 0]>>8;
-    INF_3C90X.HWAddr[1] = eeprom[HWADDR_OFFSET + 0]&0xFF;
-    INF_3C90X.HWAddr[2] = eeprom[HWADDR_OFFSET + 1]>>8;
-    INF_3C90X.HWAddr[3] = eeprom[HWADDR_OFFSET + 1]&0xFF;
-    INF_3C90X.HWAddr[4] = eeprom[HWADDR_OFFSET + 2]>>8;
-    INF_3C90X.HWAddr[5] = eeprom[HWADDR_OFFSET + 2]&0xFF;
-    outputf("MAC Address = %02x:%02x:%02x:%02x:%02x:%02x",
-    	INF_3C90X.HWAddr[0],
-    	INF_3C90X.HWAddr[1],
-    	INF_3C90X.HWAddr[2],
-    	INF_3C90X.HWAddr[3],
-    	INF_3C90X.HWAddr[4],
-    	INF_3C90X.HWAddr[5]);
-
-    /** 3C556: Invert MII power **/
-    if (INF_3C90X.is3c556) {
-	unsigned int tmp;
-	_set_window(INF_3C90X.IOAddr, winAddressing2);
-	tmp = inw(INF_3C90X.IOAddr + regResetOptions_2_w);
-	tmp |= 0x4000;
-	_outw(tmp, INF_3C90X.IOAddr + regResetOptions_2_w);
-    }
-
-    /* Test if the link is good, if not continue */
-    _set_window(INF_3C90X.IOAddr, winDiagnostics4);
-    mstat = inw(INF_3C90X.IOAddr + regMediaStatus_4_w);
-    if((mstat & (1<<11)) == 0) {
-	outputf("Valid link not established");
-	return 0;
-    }
-
-    /** Program the MAC address into the station address registers **/
-    _set_window(INF_3C90X.IOAddr, winAddressing2);
-    _outw(htons(eeprom[HWADDR_OFFSET + 0]), INF_3C90X.IOAddr + regStationAddress_2_3w);
-    _outw(htons(eeprom[HWADDR_OFFSET + 1]), INF_3C90X.IOAddr + regStationAddress_2_3w+2);
-    _outw(htons(eeprom[HWADDR_OFFSET + 2]), INF_3C90X.IOAddr + regStationAddress_2_3w+4);
-    _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+0);
-    _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+2);
-    _outw(0, INF_3C90X.IOAddr + regStationMask_2_3w+4);
-
-    /** Read the media options register, print a message and set default
-     ** xcvr.
-     **
-     ** Uses Media Option command on B revision, Reset Option on non-B
-     ** revision cards -- same register address
-     **/
-    _set_window(INF_3C90X.IOAddr, winTxRxOptions3);
-    mopt = inw(INF_3C90X.IOAddr + regResetMediaOptions_3_w);
-
-    /** mask out VCO bit that is defined as 10baseFL bit on B-rev cards **/
-    if (! INF_3C90X.isBrev)
-	{
-	mopt &= 0x7F;
+	/* Test if the link is good; if not, bail out */
+	_set_window(nic, winDiagnostics4);
+	mstat = inw(nic->ioaddr + regMediaStatus_4_w);
+	if((mstat & (1<<11)) == 0) {
+		outputf("3c90x: valid link not established");
+		return 0;
 	}
 
-    outputf("Connectors present: ");
-    c = 0;
-    linktype = 0x0008;
-    if (mopt & 0x01)
-	{
-	outputf("  100Base-T4");
-	linktype = 0x0006;
-	}
-    if (mopt & 0x04)
-	{
-	outputf("  100Base-FX");
-	linktype = 0x0005;
-	}
-    if (mopt & 0x10)
-	{
-	outputf("  10Base-2");
-	linktype = 0x0003;
-	}
-    if (mopt & 0x20)
-	{
-	outputf("  AUI");
-	linktype = 0x0001;
-	}
-    if (mopt & 0x40)
-	{
-	outputf("  MII");
-	linktype = 0x0006;
-	}
-    if ((mopt & 0xA) == 0xA)
-	{
-	outputf("  10Base-T / 100Base-TX");
+	/* Program the MAC address into the station address registers */
+	_set_window(nic, winAddressing2);
+	outw(nic->ioaddr + regStationAddress_2_3w, htons(eeprom[HWADDR_OFFSET + 0]));
+	outw(nic->ioaddr + regStationAddress_2_3w+2, htons(eeprom[HWADDR_OFFSET + 1]));
+	outw(nic->ioaddr + regStationAddress_2_3w+4, htons(eeprom[HWADDR_OFFSET + 2]));
+	outw(nic->ioaddr + regStationMask_2_3w+0, 0);
+	outw(nic->ioaddr + regStationMask_2_3w+2, 0);
+	outw(nic->ioaddr + regStationMask_2_3w+4, 0);
+
+	/** Read the media options register, print a message and set default
+	 ** xcvr.
+	 **
+	 ** Uses Media Option command on B revision, Reset Option on non-B
+	 ** revision cards -- same register address
+	 **/
+	_set_window(nic, winTxRxOptions3);
+	mopt = inw(nic->ioaddr + regResetMediaOptions_3_w);
+
+	/** mask out VCO bit that is defined as 10baseFL bit on B-rev cards **/
+	if (!nic->isBrev)
+		mopt &= 0x7F;
+
+	outputf("3c90x: connectors present: ");
+	c = 0;
 	linktype = 0x0008;
-	}
-    else if ((mopt & 0xA) == 0x2)
+	if (mopt & 0x01)
 	{
-	outputf("  100Base-TX");
-	linktype = 0x0008;
-	}
-    else if ((mopt & 0xA) == 0x8)
-	{
-	outputf("  10Base-T");
-	linktype = 0x0008;
-	}
-
-    /** Determine transceiver type to use, depending on value stored in
-     ** eeprom 0x16
-     **/
-    if (INF_3C90X.isBrev)
-	{
-	if ((eeprom[0x16] & 0xFF00) == XCVR_MAGIC)
-	    {
-	    /** User-defined **/
-	    linktype = eeprom[0x16] & 0x000F;
-	    }
-	}
-    else
-	{
-#ifdef	CFG_3C90X_XCVR
-	    if (CFG_3C90X_XCVR != 255)
-		linktype = CFG_3C90X_XCVR;
-#endif	/* CFG_3C90X_XCVR */
-
-	    /** I don't know what MII MAC only mode is!!! **/
-	    if (linktype == 0x0009)
-		{
-		if (INF_3C90X.isBrev)
-			outputf("WARNING: MII External MAC Mode only supported on B-revision "
-			       "cards!!!!\nFalling Back to MII Mode\n");
+		outputf("  100Base-T4");
 		linktype = 0x0006;
-		}
 	}
-
-    /** enable DC converter for 10-Base-T **/
-    if (linktype == 0x0003)
+	if (mopt & 0x04)
 	{
-	_issue_command(INF_3C90X.IOAddr, cmdEnableDcConverter, 0);
+		outputf("  100Base-FX");
+		linktype = 0x0005;
+	}
+	if (mopt & 0x10)
+	{
+		outputf("  10Base-2");
+		linktype = 0x0003;
+	}
+	if (mopt & 0x20)
+	{
+		outputf("  AUI");
+		linktype = 0x0001;
+	}
+	if (mopt & 0x40)
+	{
+		outputf("  MII");
+		linktype = 0x0006;
+	}
+	if ((mopt & 0xA) == 0xA)
+	{
+		outputf("  10Base-T / 100Base-TX");
+		linktype = 0x0008;
+	} else if ((mopt & 0xA) == 0x2) {
+		outputf("  100Base-TX");
+		linktype = 0x0008;
+	} else if ((mopt & 0xA) == 0x8) {
+		outputf("  10Base-T");
+		linktype = 0x0008;
 	}
 
-    /** Set the link to the type we just determined. **/
-    _set_window(INF_3C90X.IOAddr, winTxRxOptions3);
-    cfg = inl(INF_3C90X.IOAddr + regInternalConfig_3_l);
-    cfg &= ~(0xF<<20);
-    cfg |= (linktype<<20);
-    _outl(cfg, INF_3C90X.IOAddr + regInternalConfig_3_l);
+	/** Determine transceiver type to use, depending on value stored in
+	 ** eeprom 0x16
+	 **/
+	if (nic->isBrev && ((eeprom[0x16] & 0xFF00) == XCVR_MAGIC))
+		linktype = eeprom[0x16] & 0x000F;	/* User-defined */
+	else if (linktype == 0x0009) {
+		if (nic->isBrev)
+			outputf("WARNING: MII External MAC Mode only supported on B-revision "
+			        "cards!!!!\nFalling Back to MII Mode\n");
+		linktype = 0x0006;
+	}
 
-    /** Now that we set the xcvr type, reset the Tx and Rx, re-enable. **/
-    _issue_command(INF_3C90X.IOAddr, cmdTxReset, 0);
-    if (!INF_3C90X.isBrev)
-	_outb(0x01, INF_3C90X.IOAddr + regTxFreeThresh_b);
+	/** enable DC converter for 10-Base-T **/
+	if (linktype == 0x0003)
+		_issue_command(nic, cmdEnableDcConverter, 0);
 
-    _issue_command(INF_3C90X.IOAddr, cmdTxEnable, 0);
+	/** Set the link to the type we just determined. **/
+	_set_window(nic, winTxRxOptions3);
+	cfg = inl(nic->ioaddr + regInternalConfig_3_l);
+	cfg &= ~(0xF<<20);
+	cfg |= (linktype<<20);
+	outl(nic->ioaddr + regInternalConfig_3_l, cfg);
 
-    /**
-     ** reset of the receiver on B-revision cards re-negotiates the link
-     ** takes several seconds (a computer eternity)
-     **/
-    if (INF_3C90X.isBrev)
-	_issue_command(INF_3C90X.IOAddr, cmdRxReset, 0x04);
-    else
-	_issue_command(INF_3C90X.IOAddr, cmdRxReset, 0x00);
+	/* Reset and turn on the transmit engine. */
+	_issue_command(nic, cmdTxReset, 0);
+	if (!nic->isBrev)
+		_outb(0x01, nic->ioaddr + regTxFreeThresh_b);
+	_issue_command(nic, cmdTxEnable, 0);
 
-    /** Set the RX filter = receive only individual pkts & multicast & bcast. **/
-    _issue_command(INF_3C90X.IOAddr, cmdSetRxFilter, 0x01 + 0x02 + 0x04);
-    
-    /* Stick some packets in the queue. */
-    _recv_prepare(&nic);
-    
-    /* And light up the RX engine. */
-    _issue_command(INF_3C90X.IOAddr, cmdRxEnable, 0);
+	/* Reset and turn on the receive engine. */
+	_issue_command(nic, cmdRxReset, nic->isBrev ? 0x04 : 0x00);
+	_issue_command(nic, cmdSetRxFilter, 0x01 + 0x02 + 0x04);	/* Individual, multicast, broadcast */
+	_recv_prepare(nic);					/* Set up the ring buffer... */
+	_issue_command(nic, cmdRxEnable, 0);	/* ... and light it up. */
 
-    /**
-     ** set Indication and Interrupt flags , acknowledge any IRQ's
-     **/
-    _issue_command(INF_3C90X.IOAddr, cmdSetInterruptEnable, 0);
-    _issue_command(INF_3C90X.IOAddr, cmdSetIndicationEnable, 0x0014);
-    _issue_command(INF_3C90X.IOAddr, cmdAcknowledgeInterrupt, 0x661);
+	/* Turn on interrupts, and ack any that are hanging out. */
+	_issue_command(nic, cmdSetInterruptEnable, 0);
+	_issue_command(nic, cmdSetIndicationEnable, 0x0014);
+	_issue_command(nic, cmdAcknowledgeInterrupt, 0x661);
 
-    /* * Set our exported functions **/
-    nic.recv     = _recv;
-    nic.transmit = _transmit;
-    memcpy(nic.hwaddr, INF_3C90X.HWAddr, 6);
-    eth_register(&nic);
+	/* Register with lwIP. */
+	nic->nic.recv = _recv;
+	nic->nic.transmit = _transmit;
+	eth_register(&(nic->nic));
 
-    return 1;
+	return 1;
 }
 
-static struct pci_id a3c90x_nics[] = {
-/* Original 90x revisions: */
-PCI_ROM(0x10b7, 0x6055, "3c556",	 "3C556"),		/* Huricane */
-PCI_ROM(0x10b7, 0x9000, "3c905-tpo",     "3Com900-TPO"),	/* 10 Base TPO */
-PCI_ROM(0x10b7, 0x9001, "3c905-t4",      "3Com900-Combo"),	/* 10/100 T4 */
-PCI_ROM(0x10b7, 0x9050, "3c905-tpo100",  "3Com905-TX"),		/* 100 Base TX / 10/100 TPO */
-PCI_ROM(0x10b7, 0x9051, "3c905-combo",   "3Com905-T4"),		/* 100 Base T4 / 10 Base Combo */
-/* Newer 90xB revisions: */
-PCI_ROM(0x10b7, 0x9004, "3c905b-tpo",    "3Com900B-TPO"),	/* 10 Base TPO */
-PCI_ROM(0x10b7, 0x9005, "3c905b-combo",  "3Com900B-Combo"),	/* 10 Base Combo */
-PCI_ROM(0x10b7, 0x9006, "3c905b-tpb2",   "3Com900B-2/T"),	/* 10 Base TP and Base2 */
-PCI_ROM(0x10b7, 0x900a, "3c905b-fl",     "3Com900B-FL"),	/* 10 Base FL */
-PCI_ROM(0x10b7, 0x9055, "3c905b-tpo100", "3Com905B-TX"),	/* 10/100 TPO */
-PCI_ROM(0x10b7, 0x9056, "3c905b-t4",     "3Com905B-T4"),	/* 10/100 T4 */
-PCI_ROM(0x10b7, 0x9058, "3c905b-9058",   "3Com905B-9058"),	/* Cyclone 10/100/BNC */
-PCI_ROM(0x10b7, 0x905a, "3c905b-fx",     "3Com905B-FL"),	/* 100 Base FX / 10 Base FX */
-/* Newer 90xC revision: */
-PCI_ROM(0x10b7, 0x9200, "3c905c-tpo",    "3Com905C-TXM"),	/* 10/100 TPO (3C905C-TXM) */
-PCI_ROM(0x10b7, 0x9202, "3c920b-emb-ati", "3c920B-EMB-WNM (ATI Radeon 9100 IGP)"),	/* 3c920B-EMB-WNM (ATI Radeon 9100 IGP) */
-PCI_ROM(0x10b7, 0x9210, "3c920b-emb-wnm","3Com20B-EMB WNM"),
-PCI_ROM(0x10b7, 0x9800, "3c980",         "3Com980-Cyclone"),	/* Cyclone */
-PCI_ROM(0x10b7, 0x9805, "3c9805",        "3Com9805"),		/* Dual Port Server Cyclone */
-PCI_ROM(0x10b7, 0x7646, "3csoho100-tx",  "3CSOHO100-TX"),	/* Hurricane */
-PCI_ROM(0x10b7, 0x4500, "3c450",         "3Com450 HomePNA Tornado"),
-PCI_ROM(0x10b7, 0x1201, "3c982a",        "3Com982A"),
-PCI_ROM(0x10b7, 0x1202, "3c982b",        "3Com982B"),
+static struct pci_id _pci_ids[] = {
+	/* Original 90x revisions: */
+	PCI_ROM(0x10b7, 0x6055, "3c556",	 "3C556"),		/* Huricane */
+	PCI_ROM(0x10b7, 0x9000, "3c905-tpo",     "3Com900-TPO"),	/* 10 Base TPO */
+	PCI_ROM(0x10b7, 0x9001, "3c905-t4",      "3Com900-Combo"),	/* 10/100 T4 */
+	PCI_ROM(0x10b7, 0x9050, "3c905-tpo100",  "3Com905-TX"),		/* 100 Base TX / 10/100 TPO */
+	PCI_ROM(0x10b7, 0x9051, "3c905-combo",   "3Com905-T4"),		/* 100 Base T4 / 10 Base Combo */
+	/* Newer 90xB revisions: */
+	PCI_ROM(0x10b7, 0x9004, "3c905b-tpo",    "3Com900B-TPO"),	/* 10 Base TPO */
+	PCI_ROM(0x10b7, 0x9005, "3c905b-combo",  "3Com900B-Combo"),	/* 10 Base Combo */
+	PCI_ROM(0x10b7, 0x9006, "3c905b-tpb2",   "3Com900B-2/T"),	/* 10 Base TP and Base2 */
+	PCI_ROM(0x10b7, 0x900a, "3c905b-fl",     "3Com900B-FL"),	/* 10 Base FL */
+	PCI_ROM(0x10b7, 0x9055, "3c905b-tpo100", "3Com905B-TX"),	/* 10/100 TPO */
+	PCI_ROM(0x10b7, 0x9056, "3c905b-t4",     "3Com905B-T4"),	/* 10/100 T4 */
+	PCI_ROM(0x10b7, 0x9058, "3c905b-9058",   "3Com905B-9058"),	/* Cyclone 10/100/BNC */
+	PCI_ROM(0x10b7, 0x905a, "3c905b-fx",     "3Com905B-FL"),	/* 100 Base FX / 10 Base FX */
+	/* Newer 90xC revision: */
+	PCI_ROM(0x10b7, 0x9200, "3c905c-tpo",    "3Com905C-TXM"),	/* 10/100 TPO (3C905C-TXM) */
+	PCI_ROM(0x10b7, 0x9202, "3c920b-emb-ati", "3c920B-EMB-WNM (ATI Radeon 9100 IGP)"),	/* 3c920B-EMB-WNM (ATI Radeon 9100 IGP) */
+	PCI_ROM(0x10b7, 0x9210, "3c920b-emb-wnm","3Com20B-EMB WNM"),
+	PCI_ROM(0x10b7, 0x9800, "3c980",         "3Com980-Cyclone"),	/* Cyclone */
+	PCI_ROM(0x10b7, 0x9805, "3c9805",        "3Com9805"),		/* Dual Port Server Cyclone */
+	PCI_ROM(0x10b7, 0x7646, "3csoho100-tx",  "3CSOHO100-TX"),	/* Hurricane */
+	PCI_ROM(0x10b7, 0x4500, "3c450",         "3Com450 HomePNA Tornado"),
+	PCI_ROM(0x10b7, 0x1201, "3c982a",        "3Com982A"),
+	PCI_ROM(0x10b7, 0x1202, "3c982b",        "3Com982B"),
 };
 
 struct pci_driver a3c90x_driver = {
-	.name     = "3C90X",
-	.probe    = a3c90x_probe,
-	.ids      = a3c90x_nics,
-	.id_count = sizeof(a3c90x_nics)/sizeof(a3c90x_nics[0]),
+	.name     = "3c90x",
+	.probe    = _probe,
+	.ids      = _pci_ids,
+	.id_count = sizeof(_pci_ids)/sizeof(_pci_ids[0]),
 };

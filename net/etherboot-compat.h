@@ -20,7 +20,7 @@ struct nic {
 	unsigned char hwaddr[6];
 
 	int (*recv) (struct nic *nic);
-	void (*transmit) (struct pbuf *p);
+	void (*transmit) (struct nic *nic, struct pbuf *p);
 };
 
 #define virt_to_bus(x) memory_v2p((void *)(x))
