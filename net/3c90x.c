@@ -1,10 +1,12 @@
 /*
- * 3c90x.c -- This file implements the 3c90x driver for etherboot.  Written
- * by Greg Beeley, Greg.Beeley@LightSys.org.  Modified by Steve Smith,
- * Steve.Smith@Juno.Com. Alignment bug fix Neil Newell (nn@icenoir.net).
+ * 3c90x.c
+ * NetWatch
  *
- * This program Copyright (C) 1999 LightSys Technology Services, Inc.
- * Portions Copyright (C) 1999 Steve Smith
+ * A ring buffer-based, bus-mastering Ethernet driver.
+ *
+ * Derived from Etherboot's 3c90x.c, which is
+ *   Copyright (C) 1999 LightSys Technology Services, Inc.
+ *   Portions Copyright (C) 1999 Steve Smith
  *
  * This program may be re-distributed in source or binary form, modified,
  * sold, or copied for any purpose, provided that the above copyright message
@@ -15,13 +17,6 @@
  * PURPOSE or MERCHANTABILITY.  Please read the associated documentation
  * "3c90x.txt" before compiling and using this driver.
  *
- * --------
- *
- * Program written with the assistance of the 3com documentation for
- * the 3c905B-TX card, as well as with some assistance from the 3c59x
- * driver Donald Becker wrote for the Linux kernel, and with some assistance
- * from the remainder of the Etherboot distribution.
- *
  * REVISION HISTORY:
  *
  * v0.10	1-26-1998	GRB	Initial implementation.
@@ -31,9 +26,10 @@
  *					Re-wrote poll and transmit for
  *					better error recovery and heavy
  *					network traffic operation
- * v2.01    5-26-2003 NN Fixed driver alignment issue which
- *                  caused system lockups if driver structures
- *                  not 8-byte aligned.
+ * v2.01        5-26-2003       NN      Fixed driver alignment issue which
+ *                                      caused system lockups if driver structures
+ *                                      not 8-byte aligned.
+ * NetWatch0    12-07-2008      JAW     Taken out back and shot.
  *
  */
 
@@ -48,11 +44,6 @@
 #include <paging.h>
 
 #define	XCVR_MAGIC	(0x5A00)
-/** any single transmission fails after 16 collisions or other errors
- ** this is the number of times to retry the transmission -- this should
- ** be plenty
- **/
-#define	XMIT_RETRIES	5
 
 /*** Register definitions for the 3c905 ***/
 enum Registers
@@ -317,83 +308,6 @@ a3c90x_internal_ReadEeprom(int ioaddr, int address)
 }
 
 
-#ifdef	CFG_3C90X_BOOTROM_FIX
-/*** a3c90x_internal_WriteEepromWord - write a physical word of
- *** data to the onboard serial eeprom (not the BIOS prom, but the
- *** nvram in the card that stores, among other things, the MAC
- *** address).
- ***/
-static int
-a3c90x_internal_WriteEepromWord(int ioaddr, int address, unsigned short value)
-    {
-	/** Select register window **/
-        _set_window(ioaddr, winEepromBios0);
-
-	/** Verify Eeprom not busy **/
-	while((1<<15) & inw(ioaddr + regEepromCommand_0_w));
-
-	/** Issue WriteEnable, and wait for completion. **/
-	_outw(0x30, ioaddr + regEepromCommand_0_w);
-	while((1<<15) & inw(ioaddr + regEepromCommand_0_w));
-
-	/** Issue EraseRegister, and wait for completion. **/
-	_outw(address + ((0x03)<<6), ioaddr + regEepromCommand_0_w);
-	while((1<<15) & inw(ioaddr + regEepromCommand_0_w));
-
-	/** Send the new data to the eeprom, and wait for completion. **/
-	_outw(value, ioaddr + regEepromData_0_w);
-	_outw(0x30, ioaddr + regEepromCommand_0_w);
-	while((1<<15) & inw(ioaddr + regEepromCommand_0_w));
-
-	/** Burn the new data into the eeprom, and wait for completion. **/
-	_outw(address + ((0x01)<<6), ioaddr + regEepromCommand_0_w);
-	while((1<<15) & inw(ioaddr + regEepromCommand_0_w));
-
-    return 0;
-    }
-#endif
-
-#ifdef	CFG_3C90X_BOOTROM_FIX
-/*** a3c90x_internal_WriteEeprom - write data to the serial eeprom,
- *** and re-compute the eeprom checksum.
- ***/
-static int
-a3c90x_internal_WriteEeprom(int ioaddr, int address, unsigned short value)
-    {
-    int cksum = 0,v;
-    int i;
-    int maxAddress, cksumAddress;
-
-	if (INF_3C90X.isBrev)
-	    {
-	    maxAddress=0x1f;
-	    cksumAddress=0x20;
-	    }
-	else
-	    {
-	    maxAddress=0x16;
-	    cksumAddress=0x17;
-	    }
-
-	/** Write the value. **/
-	if (a3c90x_internal_WriteEepromWord(ioaddr, address, value) == -1)
-	    return -1;
-
-	/** Recompute the checksum. **/
-	for(i=0;i<=maxAddress;i++)
-	    {
-	    v = a3c90x_internal_ReadEeprom(ioaddr, i);
-	    cksum ^= (v & 0xFF);
-	    cksum ^= ((v>>8) & 0xFF);
-	    }
-	/** Write the checksum to the location in the eeprom **/
-	if (a3c90x_internal_WriteEepromWord(ioaddr, cksumAddress, cksum) == -1)
-	    return -1;
-
-    return 0;
-    }
-#endif
-
 /*** a3c90x_reset: exported function that resets the card to its default
  *** state.  This is so the Linux driver can re-set the card up the way
  *** it wants to.  If CFG_3C90X_PRESERVE_XCVR is defined, then the reset will
@@ -576,7 +490,7 @@ static void _transmit(struct pbuf *p)
 
 /***************************** Receive routines *****************************/
 #define MAX_RECV_SIZE 1536
-#define RECV_BUFS 16
+#define RECV_BUFS 32
 
 static rxdesc_t rxdescs[RECV_BUFS];
 static struct pbuf *rxpbufs[RECV_BUFS] = {0,};
@@ -636,6 +550,7 @@ static void _recv_prepare(struct nic *nic)
 		outputf("3c90x: WARNING: Ran out of rx slots");
 	}
 	
+	_issue_command(INF_3C90X.IOAddr, cmdStallCtl, 1 /* Unstall upload */);
 }
 
 /* _recv polls the ring buffer to see if any packets are available.  If any 
@@ -776,12 +691,6 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
 	    eeprom[i] = a3c90x_internal_ReadEeprom(INF_3C90X.IOAddr, i);
 	    }
 
-#ifdef	CFG_3C90X_BOOTROM_FIX
-	/** Set xcvrSelect in InternalConfig in eeprom. **/
-	/* only necessary for 3c905b revision cards with boot PROM bug!!! */
-	a3c90x_internal_WriteEeprom(INF_3C90X.IOAddr, 0x13, 0x0160);
-#endif
-
 #ifdef	CFG_3C90X_XCVR
 	if (CFG_3C90X_XCVR == 255)
 	    {
@@ -805,15 +714,6 @@ static int a3c90x_probe(struct pci_dev * pci, void * data)
 	    eeprom[i] = a3c90x_internal_ReadEeprom(INF_3C90X.IOAddr, i);
 	    }
 	}
-
-    /** Print identification message **/
-#ifdef	CFG_3C90X_BOOTROM_FIX
-    if (INF_3C90X.isBrev)
-        {
-        outputf("NOTE: 3c905b bootrom fix enabled; has side "
-	   "effects.  See 3c90x.txt for info.");
-	}
-#endif
 
     /** Retrieve the Hardware address and print it on the screen. **/
     INF_3C90X.HWAddr[0] = eeprom[HWADDR_OFFSET + 0]>>8;
