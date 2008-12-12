@@ -3,6 +3,8 @@
 #include <output.h>
 #include <fb.h>
 
+#include "../aseg-paging/keyboard.h"
+
 #include "lwip/tcp.h"
 
 #include "rfb.h"
@@ -360,7 +362,8 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 				return NEEDMORE;
 			outputf("RFB: Key");
 
-			/* XXX stub */
+			struct key_event_pkt * p = (struct key_event_pkt *)state->data;
+			kbd_inject_keysym(htonl(p->keysym), p->downflag);
 
 			state->readpos += sizeof(struct key_event_pkt);
 			return OK;
