@@ -18,6 +18,30 @@ static int _ibf_ready = 0;
 static int _waiting_for_data = 0;
 static int curdev = 0;
 
+static int _inject_ready()
+{
+	return _ibf_ready && !_waiting_for_data;
+}
+
+void _try_inject()
+{
+	if (kbd_has_injected_scancode() && _inject_ready())
+	{
+		smi_disable_event(SMI_EVENT_DEVTRAP_KBC);
+		int i = 1000;
+		while (inb(0x64) & 0x02)	/* Busy? */
+			;
+		outb(0x64, 0xD2);	/* "Inject, please!" */
+		while (inb(0x64) & 0x02)	/* Busy? */
+			;
+		outb(0x60, kbd_get_injected_scancode());	/* data */
+		while ((inb(0x64) & 0x02) && i--)	/* wait for completion */
+			;
+		smi_enable_event(SMI_EVENT_DEVTRAP_KBC);
+	} else if (kbd_has_injected_scancode())
+		outputf("Would like to inject, but %d %d", _ibf_ready, _waiting_for_data);
+}
+
 void pci_dump() {
 	unsigned long cts;
 		
@@ -38,18 +62,26 @@ void pci_dump() {
 			b = inb(0x64);
 			
 			curdev = (b & 0x20 /* KBD_STAT_MOUSE_OBF */) ? 1 : 0;
+			
+			if ((curdev == 0) && kbd_has_injected_scancode())
+				b |= 0x1;
+
 			_ibf_ready = (b & 0x2 /* IBF */) ? 0 : 1;
 			
 			break;
 		case 0x60:
-			b = inb(0x60);
+			if ((curdev == 0) && kbd_has_injected_scancode())
+				b = kbd_get_injected_scancode();
+			else
+				b = inb(0x60);
 			if ((curdev == 0) && (b == 0x01)) {	/* Escape */
 				outb(0xCF9, 0x4);	/* Reboot */
 				return;
 			}
 			break;
 		}
-
+		
+		dologf("READ : %08x (%02x)", cts, b);
 		*(unsigned char*)0xAFFD0 /* EAX */ = b;
 		break;
 	}
@@ -83,11 +115,6 @@ void pci_dump() {
 	outl(0x848, 0x1000);
 }
 
-static int _inject_ready()
-{
-	return _ibf_ready && !_waiting_for_data;
-}
-
 void timer_handler(smi_event_t ev)
 {
 	static unsigned int ticks = 0;
@@ -95,21 +122,7 @@ void timer_handler(smi_event_t ev)
 	smi_disable_event(SMI_EVENT_FAST_TIMER);
 	smi_enable_event(SMI_EVENT_FAST_TIMER);
 	
-	if (kbd_has_injected_scancode() && _inject_ready())
-	{
-		smi_disable_event(SMI_EVENT_DEVTRAP_KBC);
-		while (kbd_has_injected_scancode() && !(inb(0x64) & 0x01)) {
-			int i = 1000;
-			outb(0x64, 0xD2);	/* "Inject, please!" */
-			while (inb(0x64) & 0x02)	/* Busy? */
-				;
-			outb(0x60, kbd_get_injected_scancode());	/* data */
-			while ((inb(0x64) & 0x02) && i--)	/* wait for completion */
-				;
-		}
-		smi_enable_event(SMI_EVENT_DEVTRAP_KBC);
-	} else if (kbd_has_injected_scancode())
-		outputf("Would like to inject, but %d %d", _ibf_ready, _waiting_for_data);
+	_try_inject();
 	
 	outb(0x80, (ticks++) & 0xFF);
 	
