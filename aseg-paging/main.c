@@ -107,7 +107,8 @@ void timer_handler(smi_event_t ev)
 		while (inb(0x64) & 0x02)	/* wait for completion */
 			;
 		smi_enable_event(SMI_EVENT_DEVTRAP_KBC);
-	}
+	} else if (kbd_has_injected_scancode())
+		outputf("Would like to inject, but %d %d", _ibf_ready, _waiting_for_data);
 	
 	outb(0x80, (ticks++) & 0xFF);
 	
