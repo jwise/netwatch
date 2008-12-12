@@ -9,7 +9,7 @@
 #include "../net/net.h"
 #include "vga-overlay.h"
 #include "../aseg/packet.h"
-#include "../aseg/keyboard.h"
+#include "keyboard.h"
 
 unsigned int lastctr = 0;
 extern unsigned int counter;
@@ -140,7 +140,8 @@ void gbl_rls_handler(smi_event_t ev)
 		dump_log((char *)packet->data);
 		*(unsigned long*)0xAFFD4 = 42;
 	} else if (packet->type == 0xAA) {
-		kbd_inject_key('A');
+		kbd_inject_keysym('A', 1);
+		kbd_inject_keysym('A', 0);
 	} else {
 		*(unsigned long*)0xAFFD4 = 0x2BADD00D;
 	}
