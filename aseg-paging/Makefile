@@ -52,7 +52,7 @@ OBJS =	../ich2/smi.o \
 	../lib/sprintf.o \
 	../lib/console.o \
 	../lib/serial.o \
-	../aseg/keyboard.o \
+	keyboard.o \
 	../aseg/packet.o \
 	$(LWIP_OBJS) \
 	smi.o \
