@@ -98,14 +98,15 @@ void timer_handler(smi_event_t ev)
 	if (kbd_has_injected_scancode() && _inject_ready())
 	{
 		smi_disable_event(SMI_EVENT_DEVTRAP_KBC);
-		outputf("Injecting key");
-		/* Actually do the inject. */
-		outb(0x64, 0xD2);	/* "Inject, please!" */
-		while (inb(0x64) & 0x02)	/* Busy? */
-			;
-		outb(0x60, kbd_get_injected_scancode());	/* data */
-		while (inb(0x64) & 0x02)	/* wait for completion */
-			;
+		while (kbd_has_injected_scancode() && !(inb(0x64) & 0x01)) {
+			int i = 1000;
+			outb(0x64, 0xD2);	/* "Inject, please!" */
+			while (inb(0x64) & 0x02)	/* Busy? */
+				;
+			outb(0x60, kbd_get_injected_scancode());	/* data */
+			while ((inb(0x64) & 0x02) && i--)	/* wait for completion */
+				;
+		}
 		smi_enable_event(SMI_EVENT_DEVTRAP_KBC);
 	} else if (kbd_has_injected_scancode())
 		outputf("Would like to inject, but %d %d", _ibf_ready, _waiting_for_data);
