@@ -5,6 +5,7 @@
 #include <smi.h>
 #include <pci-bother.h>
 #include <fb.h>
+#include <output.h>
 #include "../net/net.h"
 #include "vga-overlay.h"
 #include "../aseg/packet.h"
@@ -13,18 +14,9 @@
 unsigned int lastctr = 0;
 extern unsigned int counter;
 
+static int _ibf_ready = 0;
+static int _waiting_for_data = 0;
 static int curdev = 0;
-
-static void cause_kbd_irq()
-{
-	outl(0x844, 0x0);
-	outl(0x848, 0x0);
-	while (inb(0x64) & 0x1)
-		inb(0x60);
-	outb(0x60, 0xee);	/* Cause an IRQ. */
-	while (inb(0x60) != 0xEE)
-		;
-}
 
 void pci_dump() {
 	unsigned long cts;
@@ -44,36 +36,17 @@ void pci_dump() {
 		case 0x64:
 			/* Read the real hardware and mask in our OBF if need be. */
 			b = inb(0x64);
-			if (kbd_has_injected_scancode())
-			{
-				dologf("OS wants to know; we have data");
-				lastctr = counter;
-				b |= 0x01;
-				b &= ~0x20;	/* no mouse for you! */
-				curdev = 0;
-			} else 
-				curdev = (b & 0x20) ? 1 : 0;
-			*(unsigned char*)0xAFFD0 /* EAX */ = b;
+			
+			curdev = (b & 0x20 /* KBD_STAT_MOUSE_OBF */) ? 1 : 0;
+			_ibf_ready = (b & 0x2 /* IBF */) ? 0 : 1;
+			
 			break;
 		case 0x60:
-			if (kbd_has_injected_scancode())
-			{
-				b = kbd_get_injected_scancode();
-				lastctr = counter;
-				while (inb(0x64) & 0x1)
-					inb(0x60);
-			} else
-				b = inb(0x60);
+			b = inb(0x60);
 			if ((curdev == 0) && (b == 0x01)) {	/* Escape */
 				outb(0xCF9, 0x4);	/* Reboot */
 				return;
 			}
-			
-			/* If there is more nus to come, generate another IRQ. */
-			if (kbd_has_injected_scancode())
-				cause_kbd_irq();
-			
-			*(unsigned char*)0xAFFD0 /* EAX */ = b;
 			break;
 		}
 
@@ -86,6 +59,18 @@ void pci_dump() {
 		
 		b = *(unsigned char*)0xAFFD0 /* EAX */;
 		dologf("WRITE: %08x (%02x)", cts, b);
+		if ((cts & 0xFFFF) == 0x64)
+			switch(b)
+			{
+			case 0x60 /*KBD_CCMD_WRITE_MODE*/:
+			case 0xD2 /*KBD_CCMD_WRITE_OBUF*/:
+			case 0xD3 /*KBD_CCMD_WRITE_AUX_OBUF*/:
+			case 0xD4 /*KBD_CCMD_WRITE_MOUSE*/:
+			case 0xD1 /*KBD_CCMD_WRITE_OUTPORT*/:
+				_waiting_for_data = 1;	/* These all should not be interrupted. */
+			}
+		else if ((cts & 0xFFFF) == 0x60)
+			_waiting_for_data = 0;
 		outb(cts & 0xFFFF, b);
 		break;
 	}
@@ -98,6 +83,11 @@ void pci_dump() {
 	outl(0x848, 0x1000);
 }
 
+static int _inject_ready()
+{
+	return _ibf_ready && !_waiting_for_data;
+}
+
 void timer_handler(smi_event_t ev)
 {
 	static unsigned int ticks = 0;
@@ -105,11 +95,17 @@ void timer_handler(smi_event_t ev)
 	smi_disable_event(SMI_EVENT_FAST_TIMER);
 	smi_enable_event(SMI_EVENT_FAST_TIMER);
 	
-	if (kbd_has_injected_scancode() && (counter > (lastctr + 2)))
+	if (kbd_has_injected_scancode() && _inject_ready())
 	{
 		smi_disable_event(SMI_EVENT_DEVTRAP_KBC);
-		dolog("Kicking timer");
-		cause_kbd_irq();
+		outputf("Injecting key");
+		/* Actually do the inject. */
+		outb(0x64, 0xD2);	/* "Inject, please!" */
+		while (inb(0x64) & 0x02)	/* Busy? */
+			;
+		outb(0x60, kbd_get_injected_scancode());	/* data */
+		while (inb(0x64) & 0x02)	/* wait for completion */
+			;
 		smi_enable_event(SMI_EVENT_DEVTRAP_KBC);
 	}
 	
@@ -137,7 +133,7 @@ void gbl_rls_handler(smi_event_t ev)
 		return;
 	}
 
-	dologf("Got packet: type %08x", packet->type);
+	outputf("Got packet: type %08x", packet->type);
 
 	if (packet->type == 42) {
 		dump_log((char *)packet->data);
