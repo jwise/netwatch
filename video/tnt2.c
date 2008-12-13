@@ -33,9 +33,11 @@ static void tnt2_getvmode(void *priv)
 		break;
 	case 0:
 		tnt2_fb.curmode.text = 1;
+		tnt2_fb.checksum_rect = (checksum_rect_t) 0;
 		break;
 	default:
 		tnt2_fb.curmode.text = 1;
+		tnt2_fb.checksum_rect = (checksum_rect_t) 0;
 		outputf("Unknown TNT2 format %x", vgard(0x28));
 		break;
 	}
