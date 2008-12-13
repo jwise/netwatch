@@ -21,7 +21,7 @@ static int adding_locks_from_time_to_time = 0;
 
 static int _inject_ready()
 {
-	return _ibf_ready && !_waiting_for_data;
+	return _ibf_ready && !_waiting_for_data && !adding_locks_from_time_to_time;
 }
 
 void _try_inject()
