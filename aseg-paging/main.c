@@ -37,6 +37,7 @@ void _try_inject()
 		outb(0x60, kbd_get_injected_scancode());	/* data */
 		while ((inb(0x64) & 0x02) && i--)	/* wait for completion */
 			;
+		outl(0x844, 0x1000);
 		smi_enable_event(SMI_EVENT_DEVTRAP_KBC);
 	} else if (kbd_has_injected_scancode())
 		outputf("Would like to inject, but %d %d", _ibf_ready, _waiting_for_data);
