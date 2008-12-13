@@ -5,6 +5,8 @@
 #include <fb.h>
 #include <paging.h>
 
+#include "checksumrect.h"
+
 static void tnt2_getvmode(void *priv);
 
 static struct fbdevice tnt2_fb = {
@@ -27,6 +29,7 @@ static void tnt2_getvmode(void *priv)
 		tnt2_fb.curmode.format = FB_RGB888;
 		tnt2_fb.curmode.bytestride = 4;
 		tnt2_fb.curmode.text = 0;
+		tnt2_fb.checksum_rect = checksum_rect_generic32;
 		break;
 	case 0:
 		tnt2_fb.curmode.text = 1;
