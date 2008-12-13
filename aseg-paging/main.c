@@ -17,6 +17,7 @@ extern unsigned int counter;
 static int _ibf_ready = 0;
 static int _waiting_for_data = 0;
 static int curdev = 0;
+static int adding_locks_from_time_to_time = 0;
 
 static int _inject_ready()
 {
@@ -38,6 +39,7 @@ void _try_inject()
 		while ((inb(0x64) & 0x02) && i--)	/* wait for completion */
 			;
 		outl(0x844, 0x1000);
+		adding_locks_from_time_to_time++;
 		smi_enable_event(SMI_EVENT_DEVTRAP_KBC);
 	} else if (kbd_has_injected_scancode())
 		outputf("Would like to inject, but %d %d", _ibf_ready, _waiting_for_data);
@@ -71,10 +73,12 @@ void pci_dump() {
 			
 			break;
 		case 0x60:
-			if ((curdev == 0) && kbd_has_injected_scancode())
+			if ((curdev == 0) && kbd_has_injected_scancode() && !adding_locks_from_time_to_time)
 				b = kbd_get_injected_scancode();
 			else
 				b = inb(0x60);
+			if (adding_locks_from_time_to_time)
+				adding_locks_from_time_to_time--;
 			if ((curdev == 0) && (b == 0x01)) {	/* Escape */
 				outb(0xCF9, 0x4);	/* Reboot */
 				return;
