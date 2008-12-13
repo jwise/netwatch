@@ -360,9 +360,10 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 		case KEY_EVENT:
 			if (state->writepos < sizeof(struct key_event_pkt))
 				return NEEDMORE;
-			outputf("RFB: Key");
 
 			struct key_event_pkt * p = (struct key_event_pkt *)state->data;
+
+			outputf("RFB: Key: %d (%c)", htonl(p->keysym), (htonl(p->keysym) & 0xFF));
 			kbd_inject_keysym(htonl(p->keysym), p->downflag);
 
 			state->readpos += sizeof(struct key_event_pkt);
