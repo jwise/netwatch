@@ -84,6 +84,9 @@ void pci_dump() {
 				return;
 			}
 			break;
+
+		default:
+			b = inb(cts & 0xFFFF);
 		}
 		
 		dologf("READ : %08x (%02x)", cts, b);
