@@ -42,8 +42,8 @@ void text_render(char *buf, int x, int y, int w, int h)
 		cx = x;
 		texty = cy / 14;
 		textx = cx / 9;
-		ch = video[texty * 50 + textx * 2];
-		at = video[texty * 50 + textx * 2 + 1];
+		ch = video[texty * 160 + textx * 2];
+		at = video[texty * 160 + textx * 2 + 1];
 		font = _font[ch * 32 + cy % 14];
 		for (cx = x; cx < (x + w); cx++)
 		{
@@ -51,8 +51,8 @@ void text_render(char *buf, int x, int y, int w, int h)
 			if (pos == 0)
 			{
 				textx = cx / 9;
-				ch = video[texty * 50 + textx * 2];
-				at = video[texty * 50 + textx * 2 + 1];
+				ch = video[texty * 160 + textx * 2];
+				at = video[texty * 160 + textx * 2 + 1];
 				font = _font[ch * 32 + cy % 14];
 			}
 			/* XXX always BGR888 */
@@ -91,20 +91,7 @@ uint32_t text_checksum(int x, int y, int w, int h)
 		cx = x;
 		texty = cy / 14;
 		textx = cx / 9;
-		ch = video[texty * 50 + textx * 2];
-		at = video[texty * 50 + textx * 2 + 1];
-		for (cx = x; cx < (x + w); cx++)
-		{
-			unsigned int pos = cx % 9;
-			if (pos == 0)
-			{
-				textx = cx / 9;
-				ch = video[texty * 50 + textx * 2];
-				at = video[texty * 50 + textx * 2 + 1];
-			}
-			
-			cksm += ch + (at << 16);
-		}
+		cksm ^= crc32(video + texty * 160 + textx * 2, (w / 9 + 1) * 2);	/* Err on the side of 'too many'. */
 	}
 	
 	smram_restore_state(old_state);
