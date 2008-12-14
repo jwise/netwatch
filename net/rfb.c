@@ -126,6 +126,8 @@ struct rfb_state {
 	uint32_t chunk_height;
 
 	uint32_t chunk_lindex;
+	
+	uint32_t chunk_checksum;
 
 	uint32_t chunk_actually_sent;
 };
@@ -188,7 +190,6 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 	struct update_header hdr;
 	int lines_left;
 	unsigned char * lptr;
-	uint32_t checksum;
 	int totaldim;
 	err_t err;
 
@@ -243,17 +244,16 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 
 			/* Do we _actually_ need to send this chunk? */
 			if (fb->checksum_rect) {
-				checksum = fb->checksum_rect(state->chunk_xpos, state->chunk_ypos,
-						     state->chunk_width, state->chunk_height);
+				state->chunk_checksum = fb->checksum_rect(state->chunk_xpos, state->chunk_ypos,
+								state->chunk_width, state->chunk_height);
 
-				if (checksum == state->checksums[state->chunk_xnum][state->chunk_ynum]) {
-					outputf("!!!!!!! SKIPPING: %08x", checksum);
+				if (state->chunk_checksum == state->checksums[state->chunk_xnum][state->chunk_ynum]) {
+					outputf("!!!!!!! SKIPPING: %08x", state->chunk_checksum);
 					if (advance_chunk(state))
 						return;
 					continue;
-				} else {
-					state->checksums[state->chunk_xnum][state->chunk_ynum] = checksum;
 				}
+				/* Checksum gets set in data block, AFTER the data has been sent. */
 			}
 
 			outputf("actually sent");
@@ -290,6 +290,7 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 
 			if (lines_left == 0) {
 				state->send_state = SST_HEADER;
+				state->checksums[state->chunk_xnum][state->chunk_ynum] = state->chunk_checksum;
 				if (advance_chunk(state))
 					return;
 				break;
