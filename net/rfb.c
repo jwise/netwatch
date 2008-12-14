@@ -18,7 +18,7 @@
 
 #define RFB_BUF_SIZE	512
 
-#define SCREEN_CHUNKS_X 8	
+#define SCREEN_CHUNKS_X 8
 #define SCREEN_CHUNKS_Y 8
 
 struct pixel_format {
@@ -124,12 +124,14 @@ struct rfb_state {
 	uint32_t chunk_width;
 	uint32_t chunk_height;
 
-	uint32_t chunk_lindex;
+	uint32_t chunk_bytes_sent;
 	
 	uint32_t chunk_checksum;
 
 	int chunk_actually_sent;
 	int try_in_a_bit;
+
+	char * blockbuf;
 };
 
 static struct server_init_message server_info;
@@ -186,10 +188,17 @@ static int advance_chunk(struct rfb_state *state) {
 	return 0;
 }
 
+static int ceildiv(int a, int b) {
+	int res = a / b;
+	if (a % b != 0) {
+		res++;
+	}
+	return res;
+}
+	
 static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 	struct update_header hdr;
-	int lines_left;
-	unsigned char * lptr;
+	int bytes_left;
 	int totaldim;
 	err_t err;
 
@@ -218,18 +227,14 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 			 * height, we may need to have shorter chunks at the edge of
 			 * the screen. */
 
-			state->chunk_width = fb->curmode.xres / SCREEN_CHUNKS_X;
-			if (fb->curmode.xres % SCREEN_CHUNKS_X != 0)
-				state->chunk_width += 1;
+			state->chunk_width = ceildiv(fb->curmode.xres, SCREEN_CHUNKS_X);
 			state->chunk_xpos = state->chunk_width * state->chunk_xnum;
 			totaldim = state->chunk_width * (state->chunk_xnum + 1);
 			if (totaldim > fb->curmode.xres) {
 				state->chunk_width -= (totaldim - fb->curmode.xres);
 			}
 
-			state->chunk_height = fb->curmode.yres / SCREEN_CHUNKS_Y;
-			if (fb->curmode.yres % SCREEN_CHUNKS_Y != 0)
-				state->chunk_height += 1;
+			state->chunk_height = ceildiv(fb->curmode.yres, SCREEN_CHUNKS_Y);
 			state->chunk_ypos = state->chunk_height
 						 * state->chunk_ynum;
 			totaldim = state->chunk_height * (state->chunk_ynum + 1);
@@ -255,14 +260,13 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 
 			/* Send a header */
 			hdr.msgtype = 0;
-			state->chunk_lindex = 0;
+			state->chunk_bytes_sent = 0;
 			hdr.nrects = htons(1);
 			hdr.xpos = htons(state->chunk_xpos);
 			hdr.ypos = htons(state->chunk_ypos);
 			hdr.width = htons(state->chunk_width);
 			hdr.height= htons(state->chunk_height);
 			hdr.enctype = htonl(0);
-			lines_left = state->chunk_height;
 
 			err = tcp_write(pcb, &hdr, sizeof(hdr), TCP_WRITE_FLAG_COPY);
 
@@ -276,13 +280,18 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 
 			state->send_state = SST_DATA;
 
+			/* Snag the data. */
+			fb->copy_pixels(state->blockbuf,
+				state->chunk_xpos, state->chunk_ypos,
+				state->chunk_width, state->chunk_height);
+
 			/* FALL THROUGH to SST_DATA */
 
 		case SST_DATA:
 
-			lines_left = state->chunk_height - state->chunk_lindex;
+			bytes_left = 4 * state->chunk_width * state->chunk_height - state->chunk_bytes_sent;
 
-			if (lines_left == 0) {
+			if (bytes_left == 0) {
 				state->send_state = SST_HEADER;
 				state->checksums[state->chunk_xnum][state->chunk_ynum] = state->chunk_checksum;
 				if (advance_chunk(state))
@@ -290,18 +299,16 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 				break;
 			}
 
-			lptr = fb->fbaddr
-				+ (fb->curmode.xres * fb->curmode.bytestride
-				   * (state->chunk_ypos + state->chunk_lindex))
-				+ (state->chunk_xpos * fb->curmode.bytestride);
+			/* That's enough. */
+			if (bytes_left > 1400) {
+				bytes_left = 1400;
+			}
 
-			/* The network card can't DMA from video RAM,
-			 * so use TCP_WRITE_FLAG_COPY. */
-			err = tcp_write(pcb, lptr,
-				fb->curmode.bytestride * state->chunk_width, TCP_WRITE_FLAG_COPY);
+			err = tcp_write(pcb, state->blockbuf + state->chunk_bytes_sent,
+				bytes_left, TCP_WRITE_FLAG_COPY);
 
 			if (err == ERR_OK) {
-				state->chunk_lindex += 1;
+				state->chunk_bytes_sent += bytes_left;
 			} else {
 				if (err != ERR_MEM)
 					outputf("RFB: send error %d", err);
@@ -346,6 +353,7 @@ static void close_conn(struct tcp_pcb *pcb, struct rfb_state *state) {
 	tcp_sent(pcb, NULL);
 	tcp_recv(pcb, NULL);
 	mem_free(state);
+	mem_free(state->blockbuf);
 	tcp_close(pcb);
 	outputf("close_conn: done");
 }
@@ -592,26 +600,38 @@ doneprocessing:
 		
 static err_t rfb_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
 	struct rfb_state *state;
+	char * blockbuf;
 
 	LWIP_UNUSED_ARG(arg);
 	LWIP_UNUSED_ARG(err);
 
 	state = (struct rfb_state *)mem_malloc(sizeof(struct rfb_state));
 
+	if (!state)
+	{
+		outputf("rfb_accept: out of memory\n");
+		return ERR_MEM;
+	}
+
 	memset(state, 0, sizeof(struct rfb_state));
 
+	blockbuf = mem_malloc(ceildiv(fb->curmode.xres, SCREEN_CHUNKS_X)
+	                    * ceildiv(fb->curmode.yres, SCREEN_CHUNKS_Y) * 4);
+
+	if (!blockbuf)
+	{
+		outputf("rfb_accept: out of memory allocating blockbuf\n");
+		mem_free(state);
+		return ERR_MEM;
+	}
+
+	state->blockbuf = blockbuf;
 	state->state = ST_BEGIN;
 	state->send_state = SST_IDLE;
 
 	/* XXX: update_server_info() should be called from the 64ms timer, and deal
 	 * with screen resizes appropriately. */
 	update_server_info();
-
-	if (!state)
-	{
-		outputf("rfb_accept: out of memory\n");
-		return ERR_MEM;
-	}
 
 	tcp_arg(pcb, state);
 	tcp_recv(pcb, rfb_recv);
