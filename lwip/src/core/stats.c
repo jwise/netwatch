@@ -52,45 +52,45 @@ struct stats_ lwip_stats;
 void
 stats_display_proto(struct stats_proto *proto, char *name)
 {
-  LWIP_PLATFORM_DIAG(("\n%s\n\t", name));
-  LWIP_PLATFORM_DIAG(("xmit: %"STAT_COUNTER_F"\n\t", proto->xmit)); 
-  LWIP_PLATFORM_DIAG(("rexmit: %"STAT_COUNTER_F"\n\t", proto->rexmit)); 
-  LWIP_PLATFORM_DIAG(("recv: %"STAT_COUNTER_F"\n\t", proto->recv)); 
-  LWIP_PLATFORM_DIAG(("fw: %"STAT_COUNTER_F"\n\t", proto->fw)); 
-  LWIP_PLATFORM_DIAG(("drop: %"STAT_COUNTER_F"\n\t", proto->drop)); 
-  LWIP_PLATFORM_DIAG(("chkerr: %"STAT_COUNTER_F"\n\t", proto->chkerr)); 
-  LWIP_PLATFORM_DIAG(("lenerr: %"STAT_COUNTER_F"\n\t", proto->lenerr)); 
-  LWIP_PLATFORM_DIAG(("memerr: %"STAT_COUNTER_F"\n\t", proto->memerr)); 
-  LWIP_PLATFORM_DIAG(("rterr: %"STAT_COUNTER_F"\n\t", proto->rterr)); 
-  LWIP_PLATFORM_DIAG(("proterr: %"STAT_COUNTER_F"\n\t", proto->proterr)); 
-  LWIP_PLATFORM_DIAG(("opterr: %"STAT_COUNTER_F"\n\t", proto->opterr)); 
-  LWIP_PLATFORM_DIAG(("err: %"STAT_COUNTER_F"\n\t", proto->err)); 
-  LWIP_PLATFORM_DIAG(("cachehit: %"STAT_COUNTER_F"\n", proto->cachehit)); 
+  LWIP_PLATFORM_DIAG(("%s", name));
+  LWIP_PLATFORM_DIAG(("  xmit: %"STAT_COUNTER_F, proto->xmit)); 
+  LWIP_PLATFORM_DIAG(("  rexmit: %"STAT_COUNTER_F, proto->rexmit)); 
+  LWIP_PLATFORM_DIAG(("  recv: %"STAT_COUNTER_F, proto->recv)); 
+  LWIP_PLATFORM_DIAG(("  fw: %"STAT_COUNTER_F, proto->fw)); 
+  LWIP_PLATFORM_DIAG(("  drop: %"STAT_COUNTER_F, proto->drop)); 
+  LWIP_PLATFORM_DIAG(("  chkerr: %"STAT_COUNTER_F, proto->chkerr)); 
+  LWIP_PLATFORM_DIAG(("  lenerr: %"STAT_COUNTER_F, proto->lenerr)); 
+  LWIP_PLATFORM_DIAG(("  memerr: %"STAT_COUNTER_F, proto->memerr)); 
+  LWIP_PLATFORM_DIAG(("  rterr: %"STAT_COUNTER_F, proto->rterr)); 
+  LWIP_PLATFORM_DIAG(("  proterr: %"STAT_COUNTER_F, proto->proterr)); 
+  LWIP_PLATFORM_DIAG(("  opterr: %"STAT_COUNTER_F, proto->opterr)); 
+  LWIP_PLATFORM_DIAG(("  err: %"STAT_COUNTER_F, proto->err)); 
+  LWIP_PLATFORM_DIAG(("  cachehit: %"STAT_COUNTER_F, proto->cachehit)); 
 }
 
 void
 stats_display_igmp(struct stats_igmp *igmp)
 {
-  LWIP_PLATFORM_DIAG(("\nIGMP\n\t"));
-  LWIP_PLATFORM_DIAG(("lenerr: %"STAT_COUNTER_F"\n\t", igmp->lenerr)); 
-  LWIP_PLATFORM_DIAG(("chkerr: %"STAT_COUNTER_F"\n\t", igmp->chkerr)); 
-  LWIP_PLATFORM_DIAG(("v1_rxed: %"STAT_COUNTER_F"\n\t", igmp->v1_rxed)); 
-  LWIP_PLATFORM_DIAG(("join_sent: %"STAT_COUNTER_F"\n\t", igmp->join_sent)); 
-  LWIP_PLATFORM_DIAG(("leave_sent: %"STAT_COUNTER_F"\n\t", igmp->leave_sent)); 
-  LWIP_PLATFORM_DIAG(("unicast_query: %"STAT_COUNTER_F"\n\t", igmp->unicast_query)); 
-  LWIP_PLATFORM_DIAG(("report_sent: %"STAT_COUNTER_F"\n\t", igmp->report_sent)); 
-  LWIP_PLATFORM_DIAG(("report_rxed: %"STAT_COUNTER_F"\n\t", igmp->report_rxed)); 
-  LWIP_PLATFORM_DIAG(("group_query_rxed: %"STAT_COUNTER_F"\n", igmp->group_query_rxed));
+  LWIP_PLATFORM_DIAG(("IGMP"));
+  LWIP_PLATFORM_DIAG(("  lenerr: %"STAT_COUNTER_F, igmp->lenerr)); 
+  LWIP_PLATFORM_DIAG(("  chkerr: %"STAT_COUNTER_F, igmp->chkerr)); 
+  LWIP_PLATFORM_DIAG(("  v1_rxed: %"STAT_COUNTER_F, igmp->v1_rxed)); 
+  LWIP_PLATFORM_DIAG(("  join_sent: %"STAT_COUNTER_F, igmp->join_sent)); 
+  LWIP_PLATFORM_DIAG(("  leave_sent: %"STAT_COUNTER_F, igmp->leave_sent)); 
+  LWIP_PLATFORM_DIAG(("  unicast_query: %"STAT_COUNTER_F, igmp->unicast_query)); 
+  LWIP_PLATFORM_DIAG(("  report_sent: %"STAT_COUNTER_F, igmp->report_sent)); 
+  LWIP_PLATFORM_DIAG(("  report_rxed: %"STAT_COUNTER_F, igmp->report_rxed)); 
+  LWIP_PLATFORM_DIAG(("  group_query_rxed: %"STAT_COUNTER_F, igmp->group_query_rxed));
 }
 
 void
 stats_display_mem(struct stats_mem *mem, char *name)
 {
-  LWIP_PLATFORM_DIAG(("\nMEM %s\n\t", name));
-  LWIP_PLATFORM_DIAG(("avail: %"U32_F"\n\t", (u32_t)mem->avail)); 
-  LWIP_PLATFORM_DIAG(("used: %"U32_F"\n\t", (u32_t)mem->used)); 
-  LWIP_PLATFORM_DIAG(("max: %"U32_F"\n\t", (u32_t)mem->max)); 
-  LWIP_PLATFORM_DIAG(("err: %"U32_F"\n", (u32_t)mem->err));
+  LWIP_PLATFORM_DIAG(("MEM %s", name));
+  LWIP_PLATFORM_DIAG(("  avail: %"U32_F, (u32_t)mem->avail)); 
+  LWIP_PLATFORM_DIAG(("  used: %"U32_F, (u32_t)mem->used)); 
+  LWIP_PLATFORM_DIAG(("  max: %"U32_F, (u32_t)mem->max)); 
+  LWIP_PLATFORM_DIAG(("  err: %"U32_F, (u32_t)mem->err));
 }
 
 void

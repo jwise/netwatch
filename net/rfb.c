@@ -6,6 +6,7 @@
 #include "../aseg-paging/keyboard.h"
 
 #include "lwip/tcp.h"
+#include "lwip/stats.h"
 
 #include "rfb.h"
 
@@ -322,6 +323,13 @@ static err_t rfb_sent(void *arg, struct tcp_pcb *pcb, uint16_t len) {
 	return ERR_OK;
 }
 
+static err_t rfb_poll(void *arg, struct tcp_pcb *pcb) {
+	struct rfb_state *state = arg;
+	send_fsm(pcb, state);
+	stats_display();
+	return ERR_OK;
+}
+
 static void close_conn(struct tcp_pcb *pcb, struct rfb_state *state) {
 	tcp_arg(pcb, NULL);
 	tcp_sent(pcb, NULL);
@@ -591,9 +599,9 @@ static err_t rfb_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
 	tcp_arg(pcb, state);
 	tcp_recv(pcb, rfb_recv);
 	tcp_sent(pcb, rfb_sent);
+	tcp_poll(pcb, rfb_poll, 1);
 /*
 	tcp_err(pcb, rfb_err);
-	tcp_poll(pcb, rfb_poll, 2);
 */
 	tcp_write(pcb, "RFB 003.008\n", 12, 0);
 	tcp_output(pcb);
