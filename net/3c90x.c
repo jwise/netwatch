@@ -432,12 +432,12 @@ static void _transmit(struct nic *_nic, struct pbuf *p)
 	len = 0;
 	n = 0;
 	txpbufs[txprod] = p;
+	pbuf_ref(p);
 	for (; p; p = p->next)
 	{
 		txdescs[txprod].segments[n].addr = v2p(p->payload);
 		txdescs[txprod].segments[n].len = p->len | (p->next ? 0 : (1 << 31));
 		len += p->len;
-		pbuf_ref(p);
 		n++;
 	}
 	txdescs[txprod].hdr = len;	/* If we wanted completion notification, bit 15 */
