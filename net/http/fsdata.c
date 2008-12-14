@@ -1,9 +1,9 @@
-static const unsigned char data_404_html[] =
+static const char data_404_html[] =
   "<html><head><title>404 Not Found</title></head>"
   "<body><h1>404 Not Found</h1><p>This is probably not the machine you're looking for...</p></body>"
   "</html>";
 
-static const unsigned char data_index_html[] =
+static const char data_index_html[] =
   "<html><head><title>NetWatch</title></head>"
   "<body><h1>NetWatch</h1>"
   "<iframe src=\"registers.html\" height=100 width=600></iframe><br>"

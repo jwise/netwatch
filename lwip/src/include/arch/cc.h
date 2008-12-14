@@ -14,7 +14,7 @@ typedef int16_t s16_t;
 typedef int32_t s32_t;
 typedef uint32_t mem_ptr_t;
 
-#define PACK_STRUCT_FIELD(x) x __attribute__((packed))
+#define PACK_STRUCT_FIELD(x) x
 #define PACK_STRUCT_STRUCT __attribute__((packed))
 #define PACK_STRUCT_BEGIN
 #define PACK_STRUCT_END

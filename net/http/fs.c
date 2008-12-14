@@ -42,7 +42,7 @@
 
 void handle_regs(struct fs_file *file)
 {
-  static unsigned char buf[2048];
+  static char buf[2048];
   
   sprintf(buf,
     "<html><head><title>Registers</title></head><body>"
@@ -72,8 +72,8 @@ void handle_regs(struct fs_file *file)
 
 void handle_backtrace(struct fs_file *file)
 {
-  static unsigned char buf[2048];
-  static unsigned char buf2[64];
+  static char buf[2048];
+  static char buf2[64];
   int i = 10;
   unsigned long *pebp, *peip;
   unsigned long ebp;

@@ -44,7 +44,7 @@
 
 struct http_state {
   u32_t left;
-  const unsigned char *file;
+  const char *file;
   u8_t retries;
 };
 

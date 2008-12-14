@@ -34,8 +34,8 @@
 
 struct fsdata_file {
   const struct fsdata_file *next;
-  const unsigned char *name;
-  const unsigned char *data;
+  const char *name;
+  const char *data;
   const int len;
 };
 

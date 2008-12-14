@@ -33,7 +33,7 @@
 #define __FS_H__
 
 struct fs_file {
-  const unsigned char *data;
+  const char *data;
   int len;
 };
 
