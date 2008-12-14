@@ -54,6 +54,7 @@ OBJS =	../ich2/smi.o \
 	../lib/sprintf.o \
 	../lib/console.o \
 	../lib/serial.o \
+	../lib/crc32.o \
 	keyboard.o \
 	../aseg/packet.o \
 	$(LWIP_OBJS) \

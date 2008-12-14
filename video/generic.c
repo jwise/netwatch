@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <fb.h>
+#include <crc32.h>
 
 uint32_t checksum_rect_generic32(int x, int y, int width, int height) {
 
@@ -8,17 +9,15 @@ uint32_t checksum_rect_generic32(int x, int y, int width, int height) {
 	 */
 
         int scanline = fb->curmode.xres * 4;
-        uint32_t * lineaddr;
-        int i, j;
+        unsigned char * lineaddr;
+        int i;
 
         uint32_t sum = 0;
 
         for (i = 0; i < height; i++) {
-                lineaddr = (uint32_t *)(fb->fbaddr + (i + y) * scanline);
+                lineaddr = fb->fbaddr + (i + y) * scanline;
 
-                for (j = 0; j < width; j++) {
-                        sum += lineaddr[j + x];
-                }
+                sum ^= crc32(lineaddr, width * 4);
         }
 
         return sum;
@@ -32,7 +31,7 @@ void copy_pixels_generic32(char *buf, int x, int y, int width, int height)
 	for (cy = y; cy < (y + height); cy++)
 	{
 		fbuf = (unsigned int *)fb->fbaddr;
-		fbuf += y * (fb->curmode.xres) + x;
+		fbuf += cy * (fb->curmode.xres) + x;
 		for (cx = x; cx < (x + width); cx++)
 			*(ibuf++) = *(fbuf++);
 	}

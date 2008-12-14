@@ -3,6 +3,8 @@
 #include <paging.h>
 #include <minilib.h>
 #include <stdint.h>
+#include <output.h>
+#include <smram.h>
 
 static unsigned char _font[256 * 32];
 
@@ -11,23 +13,30 @@ static unsigned char _font[256 * 32];
 void text_init()
 {
 	unsigned char oldread;
+	smram_state_t old_state = smram_save_state();
 	outb(0x3CE, 0x05 /* Mode register */);
 	outb(0x3CF, inb(0x3CF) & ~(0x10 /* Odd/even */));
 	outb(0x3CE, 0x04 /* Read register */);
 	oldread = inb(0x3CF);
 	outb(0x3CF, 0x02 /* Font plane */);
+	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
 	memcpy(_font, p2v(0xB8000), sizeof(_font));
+	smram_restore_state(old_state);
 	outb(0x3CF, oldread);
 }
 
 void text_render(char *buf, int x, int y, int w, int h)
 {
-	unsigned char *video = p2v(0xB8000);
+	unsigned char *video = (unsigned char *)0xB8000;
 	unsigned int textx = x / 9;
 	unsigned int texty = y / 14;
 	unsigned int cx, cy;
 	unsigned char ch, at, font;
+	smram_state_t old_state = smram_save_state();
 	
+	outputf("text_render: buf %08x, (%d,%d),(%d,%d)", buf, x, y, w, h);
+	
+	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
 	for (cy = y; cy < (y + h); cy++)
 	{
 		texty = cy / 14;
@@ -61,16 +70,22 @@ void text_render(char *buf, int x, int y, int w, int h)
 			*(buf++) = 0;
 		}
 	}
+	smram_restore_state(old_state);
 }
 
 uint32_t text_checksum(int x, int y, int w, int h)
 {
-	unsigned char *video = p2v(0xB8000);
+	unsigned char *video = (unsigned char *)0xB8000;
 	unsigned int textx = x / 9;
 	unsigned int texty = y / 14;
 	int cx, cy;
 	unsigned char ch, at;
 	uint32_t cksm = 0;
+	smram_state_t old_state = smram_save_state();
+	
+	outputf("checksum: (%d,%d),(%d,%d)", x,y,w,h);
+	
+	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
 	
 	for (cy = y; cy < (y + h); cy++)
 	{
@@ -91,6 +106,10 @@ uint32_t text_checksum(int x, int y, int w, int h)
 			cksm += ch + (at << 16);
 		}
 	}
+	
+	smram_restore_state(old_state);
+	
+	outputf("checksum: %08x", cksm);
 	
 	return cksm;
 }

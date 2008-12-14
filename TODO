@@ -19,3 +19,4 @@ To do list:
 [X] Something has gone very wrong with the receive ring buffer, and on
     occasion, the machine stops receiving forever.
     fixed a few hours later...
+[ ] 'unknown TNT2 format ff', then a hang still happens on occasion

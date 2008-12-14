@@ -7,6 +7,7 @@
 #include <smram.h>
 #include <text.h>
 #include "../net/net.h"
+#include <crc32.h>
 
 extern int _bss, _bssend;
 
@@ -35,6 +36,8 @@ void smi_init() {
 	smi_disable();
 	
 	eth_init();
+	
+	crc32_init();
 	
 	/* After everything is initialized, load drivers. */
 	for (driver = drivers; *driver; driver++)
