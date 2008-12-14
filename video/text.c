@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <output.h>
 #include <smram.h>
+#include <crc32.h>
 
 static unsigned char _font[256 * 32];
 
@@ -80,7 +81,6 @@ uint32_t text_checksum(int x, int y, int w, int h)
 	unsigned int textx = x / 9;
 	unsigned int texty = y / 14;
 	int cx, cy;
-	unsigned char ch, at;
 	uint32_t cksm = 0;
 	smram_state_t old_state = smram_save_state();
 	
