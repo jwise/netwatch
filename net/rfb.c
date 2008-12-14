@@ -19,7 +19,7 @@
 
 #define RFB_BUF_SIZE	512
 
-#define SCREEN_CHUNKS_X 4	
+#define SCREEN_CHUNKS_X 8	
 #define SCREEN_CHUNKS_Y 8
 
 struct pixel_format {
@@ -112,8 +112,8 @@ struct rfb_state {
 
 	enum {
 		SST_IDLE,
-		SST_NEEDS_UPDATE,
-		SST_SENDING
+		SST_HEADER,
+		SST_DATA
 	} send_state;
 
 	uint32_t checksums[SCREEN_CHUNKS_X][SCREEN_CHUNKS_Y];
@@ -126,6 +126,8 @@ struct rfb_state {
 	uint32_t chunk_height;
 
 	uint32_t chunk_lindex;
+
+	uint32_t chunk_actually_sent;
 };
 
 static struct server_init_message server_info;
@@ -162,158 +164,160 @@ static void update_server_info() {
 	}
 }
 
+static int advance_chunk(struct rfb_state *state) {
+
+	state->chunk_xnum += 1;
+
+	if (state->chunk_xnum == SCREEN_CHUNKS_X) {
+		state->chunk_ynum += 1;
+		state->chunk_xnum = 0;
+	}
+
+	if (state->chunk_ynum == SCREEN_CHUNKS_Y) {
+		state->chunk_ynum = 0;
+		state->send_state = SST_IDLE;
+		if (!(state->chunk_actually_sent))
+			state->update_requested = 1;
+			return 1;
+	}
+
+	return 0;
+}
+
 static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 	struct update_header hdr;
 	int lines_left;
-	char * lptr;
+	unsigned char * lptr;
 	uint32_t checksum;
 	int totaldim;
 	err_t err;
 
-	switch (state->send_state) {
-	case SST_IDLE:
-		/* Nothing to do */
-		if (state->update_requested) {
-			outputf("RFB send: update requested");
-			state->update_requested = 0;
-			state->send_state = SST_NEEDS_UPDATE;
-		} else {
-			break;
-		}
+	while(1) {
+
+		switch (state->send_state) {
+
+		case SST_IDLE:
+			/* Nothing to do */
+
+			if (state->update_requested) {
+				outputf("RFB send: update requested");
+				state->update_requested = 0;
+				state->chunk_actually_sent = 0;
+				state->send_state = SST_HEADER;
+			} else {
+				return;
+			}
 	
-		/* FALL THROUGH to SST_NEEDS_UPDATE */
+			/* FALL THROUGH to SST_HEADER */
 
-	case SST_NEEDS_UPDATE:
+		case SST_HEADER:
 
-		state->chunk_xnum = 0;
-		state->chunk_ynum = 0;
-		state->chunk_width = 0;
-		state->chunk_height = 0;
-		state->chunk_lindex = 0;
-		state->send_state = SST_SENDING;
+			/* Calculate the width and height for this chunk, remembering
+			 * that if SCREEN_CHUNKS_[XY] do not evenly divide the width and
+			 * height, we may need to have shorter chunks at the edge of
+			 * the screen. */
 
-		/* FALL THROUGH to SST_SENDING */
+			state->chunk_width = fb->curmode.xres / SCREEN_CHUNKS_X;
+			if (fb->curmode.xres % SCREEN_CHUNKS_X != 0)
+				state->chunk_width += 1;
+			state->chunk_xpos = state->chunk_width * state->chunk_xnum;
+			totaldim = state->chunk_width * (state->chunk_xnum + 1);
+			if (totaldim > fb->curmode.xres) {
+				state->chunk_width -= (totaldim - fb->curmode.xres);
+			}
 
-	case SST_SENDING:
+			state->chunk_height = fb->curmode.yres / SCREEN_CHUNKS_Y;
+			if (fb->curmode.yres % SCREEN_CHUNKS_Y != 0)
+				state->chunk_height += 1;
+			state->chunk_ypos = state->chunk_height
+						 * state->chunk_ynum;
+			totaldim = state->chunk_height * (state->chunk_ynum + 1);
+			if (totaldim > fb->curmode.yres) {
+				state->chunk_height -= (totaldim - fb->curmode.yres);
+			}
 
-		while (1) {
-			lines_left = state->chunk_height - state->chunk_lindex;
+			outputf("rfb send: (%d [%d], %d [%d]) %d x %d",
+				state->chunk_xnum, state->chunk_xpos,
+				state->chunk_ynum, state->chunk_ypos,
+				state->chunk_width, state->chunk_height);
 
-			if (lines_left == 0) {
-				/* Advance to the next chunk if necessary. If
-				 * state->chunk_height is zero, then we are
-				 * arriving here for the first time from
-				 * SST_NEEDS_UPDATE. */
+			/* Do we _actually_ need to send this chunk? */
+			if (fb->checksum_rect) {
+				checksum = fb->checksum_rect(state->chunk_xpos, state->chunk_ypos,
+						     state->chunk_width, state->chunk_height);
 
-				if (state->chunk_height != 0) {
-					state->chunk_xnum += 1;
-				}
-
-				if (state->chunk_xnum == SCREEN_CHUNKS_X) {
-					state->chunk_ynum += 1;
-					state->chunk_xnum = 0;
-				}
-
-				if (state->chunk_ynum == SCREEN_CHUNKS_Y) {
-					state->send_state = SST_IDLE;
-					outputf("RFB: Screen update done! %d", state->update_requested);
-					break;
-				}
-
-				/* Calculate the width and height for this chunk, remembering
-				 * that if SCREEN_CHUNKS_[XY] do not evenly divide the width and
-				 * height, we may need to have shorter chunks at the edge of
-				 * the screen. */
-
-				state->chunk_width = fb->curmode.xres / SCREEN_CHUNKS_X;
-				if (fb->curmode.xres % SCREEN_CHUNKS_X != 0)
-					state->chunk_width += 1;
-				state->chunk_xpos = state->chunk_width * state->chunk_xnum;
-				totaldim = state->chunk_width * (state->chunk_xnum + 1);
-				if (totaldim > fb->curmode.xres) {
-					state->chunk_width -= (totaldim - fb->curmode.xres);
-				}
-
-				state->chunk_height = fb->curmode.yres / SCREEN_CHUNKS_Y;
-				if (fb->curmode.yres % SCREEN_CHUNKS_Y != 0)
-					state->chunk_height += 1;
-				state->chunk_ypos = state->chunk_height
-				                         * state->chunk_ynum;
-				totaldim = state->chunk_height * (state->chunk_ynum + 1);
-				if (totaldim > fb->curmode.yres) {
-					state->chunk_height -= (totaldim - fb->curmode.yres);
-				}
-
-				if (fb->checksum_rect) {
-					checksum = fb->checksum_rect(state->chunk_xpos, state->chunk_ypos,
-				                                     state->chunk_width, state->chunk_height);
-
-					if (checksum == state->checksums[state->chunk_xnum][state->chunk_ynum]) {
-						state->chunk_lindex = state->chunk_height;
-						continue;
-					} else {
-						state->checksums[state->chunk_xnum][state->chunk_ynum] = checksum;
-					}
-				}
-/*
-				outputf("RFB send: sending header");
-*/
-				/* Send a header */
-				hdr.msgtype = 0;
-				state->chunk_lindex = 0;
-				hdr.nrects = htons(1);
-				hdr.xpos = htons(state->chunk_xpos);
-				hdr.ypos = htons(state->chunk_ypos);
-				hdr.width = htons(state->chunk_width);
-				hdr.height= htons(state->chunk_height);
-				hdr.enctype = htonl(0);
-				lines_left = state->chunk_height;
-
-				err = tcp_write(pcb, &hdr, sizeof(hdr), TCP_WRITE_FLAG_COPY);
-
-				if (err != ERR_OK) {
-					if (err != ERR_MEM)
-						outputf("RFB: header send error %d", err);
-
-					/* Crap. Reset chunk_height to 0 so that next time around,
-					 * we'll recalculate this chunk (not advance) and try to
-					 * send the header again. 
-					 */
-					state->chunk_height = 0;
+				if (checksum == state->checksums[state->chunk_xnum][state->chunk_ynum]) {
+					outputf("!!!!!!! SKIPPING: %08x", checksum);
+					if (advance_chunk(state))
+						return;
+					continue;
+				} else {
+					state->checksums[state->chunk_xnum][state->chunk_ynum] = checksum;
 				}
 			}
 
-			do {
-				lptr = fb->fbaddr
-					+ (fb->curmode.xres * fb->curmode.bytestride
-					   * (state->chunk_ypos + state->chunk_lindex))
-					+ (state->chunk_xpos * fb->curmode.bytestride);
+			outputf("actually sent");
+			state->chunk_actually_sent = 1;
 
-				/* The network card can't DMA from video RAM,
-				 * so use TCP_WRITE_FLAG_COPY. */
-				err = tcp_write(pcb, lptr,
-					fb->curmode.bytestride * state->chunk_width,
-					TCP_WRITE_FLAG_COPY);
+			/* Send a header */
+			hdr.msgtype = 0;
+			state->chunk_lindex = 0;
+			hdr.nrects = htons(1);
+			hdr.xpos = htons(state->chunk_xpos);
+			hdr.ypos = htons(state->chunk_ypos);
+			hdr.width = htons(state->chunk_width);
+			hdr.height= htons(state->chunk_height);
+			hdr.enctype = htonl(0);
+			lines_left = state->chunk_height;
 
-				if (err == ERR_OK) {
-					state->chunk_lindex += 1;
-				}
-
-			} while (err == ERR_OK && state->chunk_lindex < state->chunk_height);
+			err = tcp_write(pcb, &hdr, sizeof(hdr), TCP_WRITE_FLAG_COPY);
 
 			if (err != ERR_OK) {
 				if (err != ERR_MEM)
+					outputf("RFB: header send error %d", err);
+
+				/* Try again later. */
+				return;
+			}
+
+			state->send_state = SST_DATA;
+
+			/* FALL THROUGH to SST_DATA */
+
+		case SST_DATA:
+
+			lines_left = state->chunk_height - state->chunk_lindex;
+
+			if (lines_left == 0) {
+				state->send_state = SST_HEADER;
+				if (advance_chunk(state))
+					return;
+				break;
+			}
+
+			lptr = fb->fbaddr
+				+ (fb->curmode.xres * fb->curmode.bytestride
+				   * (state->chunk_ypos + state->chunk_lindex))
+				+ (state->chunk_xpos * fb->curmode.bytestride);
+
+			/* The network card can't DMA from video RAM,
+			 * so use TCP_WRITE_FLAG_COPY. */
+			err = tcp_write(pcb, lptr,
+				fb->curmode.bytestride * state->chunk_width, TCP_WRITE_FLAG_COPY);
+
+			if (err == ERR_OK) {
+				state->chunk_lindex += 1;
+			} else {
+				if (err != ERR_MEM)
 					outputf("RFB: send error %d", err);
 
-				break;
+				return;
 			}
 				
 			if (tcp_sndbuf(pcb) == 0) {
-				break;
+				return;
 			}
 		}
-
-		break;
 	}
 	
 	if (tcp_output(pcb) != ERR_OK)
@@ -328,7 +332,6 @@ static err_t rfb_sent(void *arg, struct tcp_pcb *pcb, uint16_t len) {
 
 static err_t rfb_poll(void *arg, struct tcp_pcb *pcb) {
 	struct rfb_state *state = arg;
-	state->update_requested = 1;
 	send_fsm(pcb, state);
 /*
 	stats_display();
@@ -493,13 +496,13 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 				(struct text_event_pkt *)state->data;
 
 			if (state->writepos < sizeof(struct text_event_pkt)
-			                      + pkt->length)
+					      + pkt->length)
 				return NEEDMORE;
 
 			/* XXX stub */
 
 			state->readpos += sizeof(struct text_event_pkt)
-			                  + pkt->length;
+					  + pkt->length;
 			return OK;
 
 		default:
@@ -512,7 +515,7 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 }
 
 static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
-                      struct pbuf *p, err_t err) {
+		      struct pbuf *p, err_t err) {
 	struct rfb_state *state = arg;
 
 	if (state == NULL) 
@@ -565,8 +568,8 @@ static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
 				return ERR_OK;
 			} else {
 				memmove(state->data,
-				        state->data + state->readpos,
-				        state->writepos - state->readpos);
+					state->data + state->readpos,
+					state->writepos - state->readpos);
 			}
 			break;
 		case FAIL:
@@ -591,6 +594,7 @@ static err_t rfb_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
 	state->writepos = 0;
 	state->update_requested = 0;
 	state->send_state = SST_IDLE;
+	memset(state->checksums, 0, sizeof(state->checksums));
 
 	/* XXX: update_server_info() should be called from the 64ms timer, and deal
 	 * with screen resizes appropriately. */

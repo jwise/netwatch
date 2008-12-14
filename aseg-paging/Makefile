@@ -1,8 +1,9 @@
-CC=gcc
+CC=gcc-4.3
 CFLAGS=-I../include -I../include/raw \
        -I../lwip/src/include -I../lwip/src/include/ipv4 \
        -nostdlib -nostdinc -fno-builtin -D__RAW__ \
-       -Wall -Werror -std=gnu99
+       -Wall -Werror -std=gnu99 -Wstrict-aliasing=2 \
+       -O1 -fno-merge-constants -fno-strict-aliasing
 
 STUBOBJS=entry.o pagingstub-asm.o pagingstub.o
 
