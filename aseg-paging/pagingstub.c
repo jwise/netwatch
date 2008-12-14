@@ -170,6 +170,17 @@ static void pt_setup(int tseg_start, int tseg_size) {
 		addmap(0x1F0000 + i * 0x1000, tseg_start + i * 0x1000);
 }
 
+void init_and_run(void)
+{
+	if (!initialized)
+	{
+		smi_init();
+		initialized = 1;
+	}
+	
+	smi_entry();
+}
+
 void c_entry(void)
 {
 	paging_enb = 0;
@@ -209,15 +220,6 @@ void c_entry(void)
 	
 	outb(0x80, 0x07);
 
-	if (!initialized)
-	{
-		smi_init();	/* Run the firstrun. */
-		outb(0x80, 0x08);
-		
-		initialized = 1;
-	}
-	
-	outb(0x80, 0x09);
-	ps_switch_stack(smi_entry, 0x270000);
+	ps_switch_stack(init_and_run, 0x270000);
 	outb(0x80, 0xFA);
 }
