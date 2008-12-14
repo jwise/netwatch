@@ -21,6 +21,7 @@ struct vmode {
 
 struct fbdevice {
 	unsigned char *fbaddr;
+	unsigned char *textbase;	/* A safe place to put a textfb. */
 	void *priv;
 	getvmode_t getvmode;
 	checksum_rect_t checksum_rect;

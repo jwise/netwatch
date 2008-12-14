@@ -47,6 +47,7 @@ OBJS =	../ich2/smi.o \
 	../video/tnt2.o \
 	../video/fb.o \
 	../video/checksumrect.o \
+	../video/text.o \
 	drivers.o \
 	../lib/minilib.o \
 	../lib/doprnt.o \

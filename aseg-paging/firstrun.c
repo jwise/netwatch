@@ -5,6 +5,7 @@
 #include <output.h>
 #include "vga-overlay.h"
 #include <smram.h>
+#include <text.h>
 #include "../net/net.h"
 
 extern int _bss, _bssend;
@@ -43,6 +44,9 @@ void smi_init() {
 			output("Found a card");
 	}
 	outputf("Driver probe complete");
+	
+	/* Load in fonts. */
+	text_init();
 
 	smi_register_handler(SMI_EVENT_FAST_TIMER, timer_handler);
 	smi_enable_event(SMI_EVENT_FAST_TIMER);
