@@ -34,7 +34,7 @@ void text_render(char *buf, int x, int y, int w, int h)
 	unsigned char ch, at, font;
 	smram_state_t old_state = smram_save_state();
 	
-	outputf("text_render: buf %08x, (%d,%d),(%d,%d)", buf, x, y, w, h);
+	outputf("text_render: (%d,%d),(%d,%d)", buf, x, y, w, h);
 	
 	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
 	for (cy = y; cy < (y + h); cy++)
@@ -84,8 +84,6 @@ uint32_t text_checksum(int x, int y, int w, int h)
 	uint32_t cksm = 0;
 	smram_state_t old_state = smram_save_state();
 	
-	outputf("checksum: (%d,%d),(%d,%d)", x,y,w,h);
-	
 	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
 	
 	for (cy = y; cy < (y + h); cy++)
@@ -110,8 +108,6 @@ uint32_t text_checksum(int x, int y, int w, int h)
 	}
 	
 	smram_restore_state(old_state);
-	
-	outputf("checksum: %08x", cksm);
 	
 	return cksm;
 }
