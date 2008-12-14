@@ -28,11 +28,11 @@ void copy_pixels_generic32(char *buf, int x, int y, int width, int height)
 	int cx, cy;
 	unsigned int *ibuf = (unsigned int *)buf;
 	unsigned int *fbuf;
-	for (cy = y; cy < (y + height); cy++)
+	for (cy = 0; cy < height; cy++)
 	{
 		fbuf = (unsigned int *)fb->fbaddr;
-		fbuf += cy * (fb->curmode.xres) + x;
-		for (cx = x; cx < (x + width); cx++)
+		fbuf += (cy + y) * (fb->curmode.xres) + x;
+		for (cx = 0; cx < width; cx++)
 			*(ibuf++) = *(fbuf++);
 	}
 }
