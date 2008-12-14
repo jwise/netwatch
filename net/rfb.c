@@ -2,8 +2,7 @@
 #include <minilib.h>
 #include <output.h>
 #include <fb.h>
-
-#include "../aseg-paging/keyboard.h"
+#include <keyboard.h>
 
 #include "lwip/tcp.h"
 #include "lwip/stats.h"
