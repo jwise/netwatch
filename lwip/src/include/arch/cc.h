@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <vga-overlay.h>
+#include <output.h>
 #include <minilib.h>
 
 typedef uint8_t u8_t;
@@ -28,7 +29,7 @@ typedef uint32_t mem_ptr_t;
 #define LWIP_PLATFORM_HTONS(x) htons(x)
 #define LWIP_PLATFORM_HTONL(x) htonl(x)
 
-#define LWIP_PLATFORM_DIAG(x) dolog(x)
+#define LWIP_PLATFORM_DIAG(x) outputf x
 #define LWIP_PLATFORM_ASSERT(x) dologf("ASSERT FAILED: %s\n", (x));
 
 #endif

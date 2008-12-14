@@ -28,5 +28,8 @@ extern void _memcpy(void *dest, const void *src, int bytes);
 #define PBUF_POOL_BUFSIZE 512
 
 #define LWIP_STATS 1
+#define LWIP_STATS_DISPLAY 1
+#define U16_F "d"
+#define U32_F "d"
 
 #endif
