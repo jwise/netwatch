@@ -17,9 +17,9 @@
 #define POINTER_EVENT		5
 #define CLIENT_CUT_TEXT		6
 
-#define RFB_BUF_SIZE	64
+#define RFB_BUF_SIZE	512
 
-#define SCREEN_CHUNKS_X	16
+#define SCREEN_CHUNKS_X 4	
 #define SCREEN_CHUNKS_Y 8
 
 struct pixel_format {
@@ -116,7 +116,7 @@ struct rfb_state {
 		SST_SENDING
 	} send_state;
 
-	uint32_t checksums[SCREEN_CHUNKS_Y][SCREEN_CHUNKS_X];
+	uint32_t checksums[SCREEN_CHUNKS_X][SCREEN_CHUNKS_Y];
 
 	uint32_t chunk_xnum;
 	uint32_t chunk_ynum;
@@ -166,6 +166,7 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 	struct update_header hdr;
 	int lines_left;
 	char * lptr;
+	uint32_t checksum;
 	int totaldim;
 	err_t err;
 
@@ -199,10 +200,6 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 			lines_left = state->chunk_height - state->chunk_lindex;
 
 			if (lines_left == 0) {
-				outputf("RFB: (%d [%d], %d [%d]), advancing",
-					state->chunk_xnum, state->chunk_xpos,
-					state->chunk_ynum, state->chunk_ypos);
-
 				/* Advance to the next chunk if necessary. If
 				 * state->chunk_height is zero, then we are
 				 * arriving here for the first time from
@@ -219,10 +216,9 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 
 				if (state->chunk_ynum == SCREEN_CHUNKS_Y) {
 					state->send_state = SST_IDLE;
+					outputf("RFB: Screen update done! %d", state->update_requested);
 					break;
 				}
-
-				outputf("RFB send: sending header");
 
 				/* Calculate the width and height for this chunk, remembering
 				 * that if SCREEN_CHUNKS_[XY] do not evenly divide the width and
@@ -248,15 +244,29 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 					state->chunk_height -= (totaldim - fb->curmode.yres);
 				}
 
+				if (fb->checksum_rect) {
+					checksum = fb->checksum_rect(state->chunk_xpos, state->chunk_ypos,
+				                                     state->chunk_width, state->chunk_height);
+
+					if (checksum == state->checksums[state->chunk_xnum][state->chunk_ynum]) {
+						state->chunk_lindex = state->chunk_height;
+						continue;
+					} else {
+						state->checksums[state->chunk_xnum][state->chunk_ynum] = checksum;
+					}
+				}
+/*
+				outputf("RFB send: sending header");
+*/
 				/* Send a header */
 				hdr.msgtype = 0;
+				state->chunk_lindex = 0;
 				hdr.nrects = htons(1);
 				hdr.xpos = htons(state->chunk_xpos);
 				hdr.ypos = htons(state->chunk_ypos);
 				hdr.width = htons(state->chunk_width);
 				hdr.height= htons(state->chunk_height);
 				hdr.enctype = htonl(0);
-				state->chunk_lindex = 0;
 				lines_left = state->chunk_height;
 
 				err = tcp_write(pcb, &hdr, sizeof(hdr), TCP_WRITE_FLAG_COPY);
@@ -274,12 +284,6 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 			}
 
 			do {
-				outputf("RFB: (%d [%d], %d [%d]), %d x %d, line %d",
-					state->chunk_xnum, state->chunk_xpos,
-					state->chunk_ynum, state->chunk_ypos,
-					state->chunk_width, state->chunk_height,
-					state->chunk_lindex);
-
 				lptr = fb->fbaddr
 					+ (fb->curmode.xres * fb->curmode.bytestride
 					   * (state->chunk_ypos + state->chunk_lindex))
@@ -301,7 +305,6 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 				if (err != ERR_MEM)
 					outputf("RFB: send error %d", err);
 
-				outputf("RFB: that's all for now");
 				break;
 			}
 				
@@ -325,8 +328,11 @@ static err_t rfb_sent(void *arg, struct tcp_pcb *pcb, uint16_t len) {
 
 static err_t rfb_poll(void *arg, struct tcp_pcb *pcb) {
 	struct rfb_state *state = arg;
+	state->update_requested = 1;
 	send_fsm(pcb, state);
+/*
 	stats_display();
+*/
 	return ERR_OK;
 }
 
