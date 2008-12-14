@@ -20,7 +20,7 @@ void text_init()
 	outb(0x3CF, oldread);
 }
 
-void text_render(unsigned char *buf, unsigned int x, unsigned int y, unsigned int w, unsigned int h)
+void text_render(char *buf, int x, int y, int w, int h)
 {
 	unsigned char *video = p2v(0xB8000);
 	unsigned int textx = x / 9;
@@ -58,6 +58,7 @@ void text_render(unsigned char *buf, unsigned int x, unsigned int y, unsigned in
 				*(buf++) = (at & 0x20) ? 0xFF : 0x00;
 				*(buf++) = (at & 0x40) ? 0xFF : 0x00;
 			}
+			*(buf++) = 0;
 		}
 	}
 }

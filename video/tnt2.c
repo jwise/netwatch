@@ -6,7 +6,7 @@
 #include <paging.h>
 #include <text.h>
 
-#include "checksumrect.h"
+#include "generic.h"
 
 static void tnt2_getvmode(void *priv);
 
@@ -31,14 +31,17 @@ static void tnt2_getvmode(void *priv)
 		tnt2_fb.curmode.bytestride = 4;
 		tnt2_fb.curmode.text = 0;
 		tnt2_fb.checksum_rect = checksum_rect_generic32;
+		tnt2_fb.copy_pixels = copy_pixels_generic32;
 		break;
 	case 0:
 		tnt2_fb.curmode.text = 1;
-		tnt2_fb.checksum_rect = (checksum_rect_t) text_checksum;
+		tnt2_fb.checksum_rect = text_checksum;
+		tnt2_fb.copy_pixels = text_render;
 		break;
 	default:
 		tnt2_fb.curmode.text = 1;
-		tnt2_fb.checksum_rect = (checksum_rect_t) text_checksum;
+		tnt2_fb.checksum_rect = text_checksum;
+		tnt2_fb.copy_pixels = text_render;
 		outputf("Unknown TNT2 format %x", vgard(0x28));
 		break;
 	}

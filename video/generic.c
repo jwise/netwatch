@@ -24,3 +24,16 @@ uint32_t checksum_rect_generic32(int x, int y, int width, int height) {
         return sum;
 }
 
+void copy_pixels_generic32(char *buf, int x, int y, int width, int height)
+{
+	int cx, cy;
+	unsigned int *ibuf = (unsigned int *)buf;
+	unsigned int *fbuf;
+	for (cy = y; cy < (y + height); cy++)
+	{
+		fbuf = (unsigned int *)fb->fbaddr;
+		fbuf += y * (fb->curmode.xres) + x;
+		for (cx = x; cx < (x + width); cx++)
+			*(ibuf++) = *(fbuf++);
+	}
+}

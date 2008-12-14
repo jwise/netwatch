@@ -12,6 +12,7 @@ typedef enum {
 
 typedef void (*getvmode_t)(void *);
 typedef uint32_t (*checksum_rect_t)(int x, int y, int width, int height);
+typedef void (*copy_pixels_t)(char *buf, int x, int y, int width, int height);
 
 struct vmode {
 	int text:1;
@@ -25,6 +26,7 @@ struct fbdevice {
 	void *priv;
 	getvmode_t getvmode;
 	checksum_rect_t checksum_rect;
+	copy_pixels_t copy_pixels;
 	struct vmode curmode;
 };
 
