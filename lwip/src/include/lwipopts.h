@@ -23,7 +23,10 @@ extern void _memcpy(void *dest, const void *src, int bytes);
 #define TCP_SND_BUF     (16 * TCP_MSS)
 #define TCP_SND_QUEUELEN 16
 
-#define MEMP_NUM_PBUF	128
-#define PBUF_POOL_SIZE  96
+#define MEMP_NUM_PBUF	256
+#define PBUF_POOL_SIZE  128
+#define PBUF_POOL_BUFSIZE 512
+
+#define LWIP_STATS 1
 
 #endif
