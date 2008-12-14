@@ -39,6 +39,7 @@ void text_render(char *buf, int x, int y, int w, int h)
 	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
 	for (cy = y; cy < (y + h); cy++)
 	{
+		cx = x;
 		texty = cy / 14;
 		textx = cx / 9;
 		ch = video[texty * 50 + textx * 2];
@@ -89,6 +90,7 @@ uint32_t text_checksum(int x, int y, int w, int h)
 	
 	for (cy = y; cy < (y + h); cy++)
 	{
+		cx = x;
 		texty = cy / 14;
 		textx = cx / 9;
 		ch = video[texty * 50 + textx * 2];
