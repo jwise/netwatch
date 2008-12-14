@@ -341,11 +341,13 @@ static err_t rfb_poll(void *arg, struct tcp_pcb *pcb) {
 }
 
 static void close_conn(struct tcp_pcb *pcb, struct rfb_state *state) {
+	outputf("close_conn: bailing");
 	tcp_arg(pcb, NULL);
 	tcp_sent(pcb, NULL);
 	tcp_recv(pcb, NULL);
 	mem_free(state);
 	tcp_close(pcb);
+	outputf("close_conn: done");
 }
 
 enum fsm_result {
@@ -508,6 +510,7 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 
 		default:
 			outputf("RFB: Bad command: %d", state->data[0]);
+			return FAIL;
 		}
 	default:
 		outputf("RFB: Bad state");
@@ -518,6 +521,7 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
 		      struct pbuf *p, err_t err) {
 	struct rfb_state *state = arg;
+	uint16_t copylen;
 
 	if (state == NULL) 
 
@@ -540,8 +544,8 @@ static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
 		return ERR_OK;
 	}
 
-	outputf("RFB: Processing %d", p->tot_len);
-	pbuf_copy_partial(p, state->data + state->writepos, p->tot_len, 0);
+	copylen = pbuf_copy_partial(p, state->data + state->writepos, p->tot_len, 0);
+	outputf("RFB: Processing %d, wp %d, cp %d", p->tot_len, state->writepos, copylen);
 	state->writepos += p->tot_len;
 
 	tcp_recved(pcb, p->tot_len);
@@ -551,26 +555,21 @@ static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
 		switch (recv_fsm(pcb, state)) {
 		case NEEDMORE:
 			outputf("RFB FSM: blocking");
-			/* Need more data */
-			return ERR_OK;
+			goto doneprocessing;
 
 		case OK:
 			outputf("RFB FSM: ok");
 
-			/* Kick off a send. */
-			if (state->send_state == SST_IDLE
-			    && state->update_requested) {
-				send_fsm(pcb, state);
-			}
-
 			if (state->readpos == state->writepos) {
 				state->readpos = 0;
 				state->writepos = 0;
-				return ERR_OK;
+				goto doneprocessing;
 			} else {
 				memmove(state->data,
 					state->data + state->readpos,
 					state->writepos - state->readpos);
+				state->writepos -= state->readpos;
+				state->readpos = 0;
 			}
 			break;
 		case FAIL:
@@ -580,6 +579,15 @@ static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
 			return ERR_OK;
 		}
 	}
+
+doneprocessing:
+
+	/* Kick off a send. */
+	if (state->send_state == SST_IDLE && state->update_requested) {
+		send_fsm(pcb, state);
+	}
+
+	return ERR_OK;
 }	
 		
 static err_t rfb_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
