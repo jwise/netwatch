@@ -594,6 +594,8 @@ static err_t rfb_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
 	state->writepos = 0;
 	state->update_requested = 0;
 	state->send_state = SST_IDLE;
+	state->chunk_xnum = 0;
+	state->chunk_ynum = 0;
 	memset(state->checksums, 0, sizeof(state->checksums));
 
 	/* XXX: update_server_info() should be called from the 64ms timer, and deal
