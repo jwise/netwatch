@@ -6,7 +6,7 @@
  * For small things, gcc inlines its memcpy, but for large things, we call out
  * to this memcpy.
  */
-inline void _memcpy(void *dest, const void *src, int bytes)
+void _memcpy(void *dest, const void *src, int bytes)
 {
 	/* I hate everyone */
 	/* Since we otherwise compile with -O0, we might as well manually speed this up a bit. */
