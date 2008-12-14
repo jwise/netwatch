@@ -57,7 +57,7 @@ OBJS =	../ich2/smi.o \
 	../lib/serial.o \
 	../lib/crc32.o \
 	keyboard.o \
-	../aseg/packet.o \
+	packet.o \
 	$(LWIP_OBJS) \
 	smi.o \
 	vga-overlay.o \

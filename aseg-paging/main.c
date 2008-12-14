@@ -8,7 +8,7 @@
 #include <output.h>
 #include "../net/net.h"
 #include "vga-overlay.h"
-#include "../aseg/packet.h"
+#include "packet.h"
 #include "keyboard.h"
 
 unsigned int lastctr = 0;
