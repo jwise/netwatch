@@ -94,7 +94,7 @@ struct update_header {
 
 struct rfb_state {
 	enum {
-		ST_BEGIN,
+		ST_BEGIN = 0,
 		ST_CLIENTINIT,
 		ST_MAIN
 	} state;
@@ -111,7 +111,7 @@ struct rfb_state {
 	struct fb_update_req client_interest_area;
 
 	enum {
-		SST_IDLE,
+		SST_IDLE = 0,
 		SST_HEADER,
 		SST_DATA
 	} send_state;
@@ -129,7 +129,8 @@ struct rfb_state {
 	
 	uint32_t chunk_checksum;
 
-	uint32_t chunk_actually_sent;
+	int chunk_actually_sent;
+	int try_in_a_bit;
 };
 
 static struct server_init_message server_info;
@@ -179,7 +180,7 @@ static int advance_chunk(struct rfb_state *state) {
 		state->chunk_ynum = 0;
 		state->send_state = SST_IDLE;
 		if (!(state->chunk_actually_sent))
-			state->update_requested = 1;
+			state->try_in_a_bit = 2;
 			return 1;
 	}
 
@@ -237,18 +238,12 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 				state->chunk_height -= (totaldim - fb->curmode.yres);
 			}
 
-			outputf("rfb send: (%d [%d], %d [%d]) %d x %d",
-				state->chunk_xnum, state->chunk_xpos,
-				state->chunk_ynum, state->chunk_ypos,
-				state->chunk_width, state->chunk_height);
-
 			/* Do we _actually_ need to send this chunk? */
 			if (fb->checksum_rect) {
 				state->chunk_checksum = fb->checksum_rect(state->chunk_xpos, state->chunk_ypos,
 								state->chunk_width, state->chunk_height);
 
 				if (state->chunk_checksum == state->checksums[state->chunk_xnum][state->chunk_ynum]) {
-					outputf("!!!!!!! SKIPPING: %08x", state->chunk_checksum);
 					if (advance_chunk(state))
 						return;
 					continue;
@@ -334,6 +329,12 @@ static err_t rfb_sent(void *arg, struct tcp_pcb *pcb, uint16_t len) {
 static err_t rfb_poll(void *arg, struct tcp_pcb *pcb) {
 	struct rfb_state *state = arg;
 	send_fsm(pcb, state);
+	if (state->try_in_a_bit) {
+		state->try_in_a_bit--;
+		if (!(state->try_in_a_bit)) {
+			state->update_requested = 1;
+		}
+	}
 /*
 	stats_display();
 */
@@ -590,14 +591,10 @@ static err_t rfb_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
 
 	state = (struct rfb_state *)mem_malloc(sizeof(struct rfb_state));
 
+	memset(state, 0, sizeof(struct rfb_state));
+
 	state->state = ST_BEGIN;
-	state->readpos = 0;
-	state->writepos = 0;
-	state->update_requested = 0;
 	state->send_state = SST_IDLE;
-	state->chunk_xnum = 0;
-	state->chunk_ynum = 0;
-	memset(state->checksums, 0, sizeof(state->checksums));
 
 	/* XXX: update_server_info() should be called from the 64ms timer, and deal
 	 * with screen resizes appropriately. */
