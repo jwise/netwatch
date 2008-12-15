@@ -17,7 +17,7 @@ uint32_t checksum_rect_generic32(int x, int y, int width, int height) {
         for (i = 0; i < height; i++) {
                 lineaddr = fb->fbaddr + (i + y) * scanline + (4 * x);
 
-                sum ^= crc32(lineaddr, width * 4);
+                sum = crc32(lineaddr, width * 4, sum);
         }
 
         return sum;

@@ -5,15 +5,15 @@
 
 uint32_t crc32_table[256];
 
-uint32_t crc32(uint8_t *buf, int len)
+uint32_t crc32(uint8_t *buf, int len, uint32_t crc0)
 {
 	uint8_t *p;
 	uint32_t crc;
 
-	crc = 0xffffffff;       /* preload shift register, per CRC-32 spec */
+	crc = crc0;
 	for (p = buf; len > 0; ++p, --len)
 		crc = (crc << 8) ^ crc32_table[(crc >> 24) ^ *p];
-	return ~crc;	    /* transmit complement, per CRC-32 spec */
+	return crc;
 }
 
 /*

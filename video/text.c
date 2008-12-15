@@ -91,7 +91,7 @@ uint32_t text_checksum(int x, int y, int w, int h)
 		cx = x;
 		texty = cy / 14;
 		textx = cx / 9;
-		cksm ^= crc32(video + texty * 160 + textx * 2, (w / 9 + 1) * 2);	/* Err on the side of 'too many'. */
+		cksm = crc32(video + texty * 160 + textx * 2, (w / 9) * 2 + 2, cksm);	/* Err on the side of 'too many'. */
 	}
 	
 	smram_restore_state(old_state);
