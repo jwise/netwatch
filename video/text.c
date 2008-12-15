@@ -83,10 +83,10 @@ void text_render(char *buf, int x, int y, int w, int h)
 		font = _font[ch * 32 + cy % 16];
 		for (cx = x; cx < (x + w); cx++)
 		{
-			unsigned int pos = cx % 9;
+			unsigned int pos = cx % 8;
 			if (pos == 0)
 			{
-				textx = cx / 9;
+				textx = cx / 8;
 				ch = video[texty * 160 + textx * 2];
 				at = video[texty * 160 + textx * 2 + 1];
 				font = _font[ch * 32 + cy % 16];
@@ -113,7 +113,7 @@ void text_render(char *buf, int x, int y, int w, int h)
 uint32_t text_checksum(int x, int y, int w, int h)
 {
 	unsigned char *video = (unsigned char *)vga_base();
-	unsigned int textx = x / 9;
+	unsigned int textx = x / 8;
 	unsigned int texty = y / 16;
 	int cx, cy;
 	uint32_t cksm = 0;
@@ -125,8 +125,8 @@ uint32_t text_checksum(int x, int y, int w, int h)
 	{
 		cx = x;
 		texty = cy / 16;
-		textx = cx / 9;
-		cksm = crc32(video + texty * 160 + textx * 2, (w / 9) * 2 + 2, cksm);	/* Err on the side of 'too many'. */
+		textx = cx / 8;
+		cksm = crc32(video + texty * 160 + textx * 2, (w / 8) * 2 + 2, cksm);	/* Err on the side of 'too many'. */
 	}
 	
 	smram_restore_state(old_state);
