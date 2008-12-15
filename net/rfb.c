@@ -255,7 +255,6 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 				/* Checksum gets set in data block, AFTER the data has been sent. */
 			}
 
-			outputf("actually sent");
 			state->chunk_actually_sent = 1;
 
 			/* Send a header */
