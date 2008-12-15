@@ -16,7 +16,7 @@
 #define POINTER_EVENT		5
 #define CLIENT_CUT_TEXT		6
 
-#define RFB_BUF_SIZE	512
+#define RFB_BUF_SIZE	1536
 
 #define SCREEN_CHUNKS_X 8
 #define SCREEN_CHUNKS_Y 8
