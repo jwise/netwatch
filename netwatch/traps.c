@@ -4,7 +4,7 @@
 
 #include "traps.h"
 
-#define CS_SEGSEL	0x10
+#define CS_SEGSEL	0x8
 
 #define FAULT_WRAPPER(func_name)        asm (           \
         ".global " #func_name "_wrapper\n"              \
