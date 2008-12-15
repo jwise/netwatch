@@ -255,7 +255,6 @@ static void send_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 				/* Checksum gets set in data block, AFTER the data has been sent. */
 			}
 
-			outputf("actually sent");
 			state->chunk_actually_sent = 1;
 
 			/* Send a header */
@@ -367,10 +366,10 @@ enum fsm_result {
 static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 	int i;
 	int pktsize;
-
+/*
 	outputf("RFB FSM: st %d rp %d wp %d", state->state, state->readpos,
 		state->writepos);
-
+*/
 	switch(state->state) {
 	case ST_BEGIN:
 		if (state->writepos < 12) return NEEDMORE;
@@ -553,7 +552,9 @@ static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
 	}
 
 	copylen = pbuf_copy_partial(p, state->data + state->writepos, p->tot_len, 0);
+/*
 	outputf("RFB: Processing %d, wp %d, cp %d", p->tot_len, state->writepos, copylen);
+*/
 	state->writepos += p->tot_len;
 
 	tcp_recved(pcb, p->tot_len);
@@ -566,8 +567,6 @@ static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
 			goto doneprocessing;
 
 		case OK:
-			outputf("RFB FSM: ok");
-
 			if (state->readpos == state->writepos) {
 				state->readpos = 0;
 				state->writepos = 0;

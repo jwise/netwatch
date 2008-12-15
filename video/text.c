@@ -69,9 +69,9 @@ void text_render(char *buf, int x, int y, int w, int h)
 	unsigned int cx, cy;
 	unsigned char ch, at, font;
 	smram_state_t old_state = smram_save_state();
-	
+/*
 	outputf("text_render: (%d,%d),(%d,%d)", x, y, w, h);
-	
+*/	
 	smram_aseg_set_state(SMRAM_ASEG_SMMCODE);
 	for (cy = y; cy < (y + h); cy++)
 	{
