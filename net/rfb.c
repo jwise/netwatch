@@ -567,8 +567,6 @@ static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
 			goto doneprocessing;
 
 		case OK:
-			outputf("RFB FSM: ok");
-
 			if (state->readpos == state->writepos) {
 				state->readpos = 0;
 				state->writepos = 0;
