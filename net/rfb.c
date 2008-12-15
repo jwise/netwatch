@@ -181,7 +181,7 @@ static int advance_chunk(struct rfb_state *state) {
 		state->chunk_ynum = 0;
 		state->send_state = SST_IDLE;
 		if (!(state->chunk_actually_sent))
-			state->try_in_a_bit = 2;
+			state->try_in_a_bit = 1;
 			return 1;
 	}
 
@@ -333,13 +333,13 @@ static err_t rfb_sent(void *arg, struct tcp_pcb *pcb, uint16_t len) {
 
 static err_t rfb_poll(void *arg, struct tcp_pcb *pcb) {
 	struct rfb_state *state = arg;
-	send_fsm(pcb, state);
 	if (state->try_in_a_bit) {
 		state->try_in_a_bit--;
 		if (!(state->try_in_a_bit)) {
 			state->update_requested = 1;
 		}
 	}
+	send_fsm(pcb, state);
 /*
 	stats_display();
 */
@@ -428,7 +428,6 @@ static enum fsm_result recv_fsm(struct tcp_pcb *pcb, struct rfb_state *state) {
 	case ST_MAIN:
 		if (state->writepos < 1) return NEEDMORE;
 
-		outputf("RFB: cmd %d", state->data[0]);
 		switch (state->data[0]) {
 
 		case SET_PIXEL_FORMAT:
@@ -552,9 +551,9 @@ static err_t rfb_recv(void *arg, struct tcp_pcb *pcb,
 	}
 
 	copylen = pbuf_copy_partial(p, state->data + state->writepos, p->tot_len, 0);
-/*
+
 	outputf("RFB: Processing %d, wp %d, cp %d", p->tot_len, state->writepos, copylen);
-*/
+
 	state->writepos += p->tot_len;
 
 	tcp_recved(pcb, p->tot_len);
