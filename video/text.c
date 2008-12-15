@@ -38,6 +38,12 @@ void text_init()
 	unsigned char oldread;
 
 	smram_state_t old_state = smram_save_state();
+	outb(0x3CE, 0x06 /* Miscellaneous */);
+	outb(0x3CF, 0x0C);
+	outb(0x3C4, 0x04 /* Seq memory mode */);
+	outb(0x3C5, inb(0x3C5) | 0x04);
+	outb(0x3CE, 0x05 /* Mode */);
+	outb(0x3CF, inb(0x3CF) & ~0x10);
 	outb(0x3CE, 0x04 /* Read register */);
 	oldread = inb(0x3CF);
 	outb(0x3CF, 0x02 /* Font plane */);
@@ -47,13 +53,19 @@ void text_init()
 	smram_restore_state(old_state);
 
 	outb(0x3CF, oldread);
+	outb(0x3CE, 0x06 /* Miscellaneous */);
+	outb(0x3CF, 0x0E);
+	outb(0x3CE, 0x05 /* Mode */);
+	outb(0x3CF, inb(0x3CF) | 0x10);
+	outb(0x3C4, 0x04 /* Seq memory mode */);
+	outb(0x3C5, inb(0x3C5) & ~0x04);
 }
 
 void text_render(char *buf, int x, int y, int w, int h)
 {
 	unsigned char *video = (unsigned char *)vga_base();
 	unsigned int textx = x / 9;
-	unsigned int texty = y / 14;
+	unsigned int texty = y / 16;
 	unsigned int cx, cy;
 	unsigned char ch, at, font;
 	smram_state_t old_state = smram_save_state();
@@ -64,11 +76,11 @@ void text_render(char *buf, int x, int y, int w, int h)
 	for (cy = y; cy < (y + h); cy++)
 	{
 		cx = x;
-		texty = cy / 14;
+		texty = cy / 16;
 		textx = cx / 9;
 		ch = video[texty * 160 + textx * 2];
 		at = video[texty * 160 + textx * 2 + 1];
-		font = _font[ch * 32 + cy % 14];
+		font = _font[ch * 32 + cy % 16];
 		for (cx = x; cx < (x + w); cx++)
 		{
 			unsigned int pos = cx % 9;
@@ -77,7 +89,7 @@ void text_render(char *buf, int x, int y, int w, int h)
 				textx = cx / 9;
 				ch = video[texty * 160 + textx * 2];
 				at = video[texty * 160 + textx * 2 + 1];
-				font = _font[ch * 32 + cy % 14];
+				font = _font[ch * 32 + cy % 16];
 			}
 			/* XXX always BGR888 */
 			if (pos == 8)	/* 9th pixel is cloned */
@@ -102,7 +114,7 @@ uint32_t text_checksum(int x, int y, int w, int h)
 {
 	unsigned char *video = (unsigned char *)vga_base();
 	unsigned int textx = x / 9;
-	unsigned int texty = y / 14;
+	unsigned int texty = y / 16;
 	int cx, cy;
 	uint32_t cksm = 0;
 	smram_state_t old_state = smram_save_state();
@@ -112,7 +124,7 @@ uint32_t text_checksum(int x, int y, int w, int h)
 	for (cy = y; cy < (y + h); cy++)
 	{
 		cx = x;
-		texty = cy / 14;
+		texty = cy / 16;
 		textx = cx / 9;
 		cksm = crc32(video + texty * 160 + textx * 2, (w / 9) * 2 + 2, cksm);	/* Err on the side of 'too many'. */
 	}
