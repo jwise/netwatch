@@ -1,8 +1,11 @@
-/** Page table and page directory flags.
+/* vm_flags.h
+ * Page table and page directory flags.
+ * NetWatch system management mode administration console
  *
- *  From intel-sys.pdf.
+ * Copyright (c) 2008 Jacob Potter and Joshua Wise.  All rights reserved.
+ * This program is free software; you can redistribute and/or modify it under
+ * the terms found in the file LICENSE in the root of this source tree.
  *
- *  @author Jacob Potter (jdpotter)
  */
 
 #ifndef _VM_FLAGS_H

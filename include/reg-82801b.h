@@ -1,3 +1,13 @@
+/* reg-82801b.h
+ * Register macros for Intel 82801B
+ * NetWatch system management mode administration console
+ *
+ * Copyright (c) 2008 Jacob Potter and Joshua Wise.  All rights reserved.
+ * This program is free software; you can redistribute and/or modify it under
+ * the terms found in the file LICENSE in the root of this source tree.
+ *
+ */
+
 #ifndef _REG_82801B_H
 #define _REG_82801B_H
 

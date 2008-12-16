@@ -1,3 +1,11 @@
+; entry.asm
+; SMI entry point
+; NetWatch system management mode administration console
+;
+; Copyright (c) 2008 Jacob Potter and Joshua Wise.  All rights reserved.
+; This program is free software; you can redistribute and/or modify it under
+; the terms found in the file LICENSE in the root of this source tree.
+
 	org 0xA8000
 [bits 16]
 entry:

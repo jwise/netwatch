@@ -1,6 +1,17 @@
+/* minilib.c
+ * General-purpose C library routines.
+ * NetWatch system management mode administration console
+ *
+ * Copyright (c) 2008 Jacob Potter and Joshua Wise.  All rights reserved.
+ * This program is free software; you can redistribute and/or modify it under
+ * the terms found in the file LICENSE in the root of this source tree.
+ *
+ */
+
 #include "console.h"
 #include <minilib.h>
 #include <output.h>
+
 
 /* We have both _memcpy and memcpy, because gcc might be able to do better in lwip.
  * For small things, gcc inlines its memcpy, but for large things, we call out

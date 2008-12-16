@@ -1,8 +1,10 @@
-/** @file console.c 
- *  @brief A console driver.
+/* console.c 
+ * A console driver.
  *
- *  @author Joshua Wise (jwise) <joshua@joshuawise.com>
- *  @bug None known
+ * Copyright (c) 2008 Joshua Wise.  All rights reserved.
+ * This program is free software; you can redistribute and/or modify it under
+ * the terms found in the file LICENSE in the root of this source tree.
+ *
  */
 
 #include <console.h>
