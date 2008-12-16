@@ -1,22 +1,9 @@
-To do list:
-[ ] Spin the fans!
-    Requested by de0u 9/11/2008
-[ ] Twice weekly backup into AFS
-    Requested by de0u 9/11/2008
-[ ] Code & data size (kloc) for IP, and for VNC estimate / project
-    presentation
-    Requested by de0u 9/11/2008
-[ ] Fix ACPI (0xB2/B3 emulation -- can we fake it?)
-[.] PCI scan / module instantiation
-[.] Refactor smram_* 
-    First cut at splitting out ICH2 code done by jdpotter 9/12/2008
-    PCI scan can be done later
-[.] Update blog as needed
-[X] Refactor SMI management (moving it all out to an ich2/x.c would be fine
-    as pass 1 -- later it can use the PCI scan)
-[ ] Synchronize headers
-[ ] Fix build system...
-[X] Something has gone very wrong with the receive ring buffer, and on
-    occasion, the machine stops receiving forever.
-    fixed a few hours later...
-[ ] 'unknown TNT2 format ff', then a hang still happens on occasion
+Todo list as of 20081216:
+
+- Support formats other than RGB888
+- Support password-based (or better) VNC authentication.
+- Automatically switch GRUB from the loader to the actual kernel
+- Fix ridiculously slow video checksumming (i.e. make X usable)
+- Make ACPI work?
+- "Unknown TNT2 format ff" hang occasionally happens during startx
+- Figure out why traps cause lockup in SMM.

@@ -1,0 +1,52 @@
+NetWatch!
+
+	This is NetWatch, a system for remote system-management-mode-based
+control of a machine without support from or awareness by the OS. It works by
+taking over a second network card to provide a standard VNC server, such that
+a machine elsewhere on the network can see the text or graphics console of the
+machine and inject keystrokes as needed.
+
+	<description of SMM and what we do with it>.
+
+	<benchmarks here>.
+
+	Because NetWatch is invisible to the OS, its CPU usage is difficult to
+monitor; we do so by comparing the MD5 throughput of the system with NetWatch
+running versus without. The only way that the OS could detect this performance
+drain is by spinning tightly and watching for a sudden jump in the CPU's time
+stamp counters.
+
+	Although it would be possible to start up NetWatch after an OS kernel
+has already loaded, it is easier and more useful to load it from GRUB before
+the OS boots, such that even the bootloader itself can be controlled over the
+network. We do this by providing a stub loader (grubload/) which can be invoked
+from GRUB, and takes care of loading the main NetWatch ELF image. Once this is
+done and NetWatch is up and running, the loader returns to real mode and
+reinvokes GRUB via the BIOS.
+
+	Our current development platform, the Intel ICH2, does not allow SMM
+traps on arbitrary PCI accesses. This makes stealing the network card from the
+OS somewhat difficult, since there is nothing SMM code can do to cleanly block
+access. NetWatch simply chooses its desired network card, and then repeatedly
+clobbers the PCI base address registers. Although Linux resets the BARs to sane
+values when it probes the PCI bus, by the time it attempts to actually load
+the network driver, the card will no longer be accessible; fortunately, the 
+driver quickly gives up, and Linux no longer attempts to access the card.
+
+	The northbridge can be configured to invoke a system management
+interrupt every 64 milliseconds, and so the bulk of NetWatch's work is done
+from this interrupt: checking the network card for incoming packets, invoking
+lwIP, and sending any response packets necessary. SMM entry also occurs when
+when the OS reads from the keyboard I/O ports, to inject scan codes as needed.
+
+	Much of NetWatch is very hardware-dependent, and although we've tried
+to maintain clean interface separation to allow for easy porting, the current
+implementation requires:
+
+  - Intel ICH2 system chipset
+  - 3C509 Ethernet card to be used by NetWatch, plus another card of
+    any type for the OS
+  - BIOS which does not set the D_LCK bit. Any system old enough to be
+    based on the ICH2 is very likely to have a suitable BIOS.
+
+	Current open issues are listed in the TODO file.
