@@ -1,0 +1,5 @@
+NetWatch License
+
+Portions of NetWatch are distributed under a number of different licenses:
+- The contents of lwip/ are covered by lwip/COPYING
+- Other files contain copyright headers at the top of the file.
