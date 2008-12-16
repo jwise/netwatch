@@ -1,0 +1,65 @@
+File overview:
+
+elfload/
+	Obsolete Linux-based ELF loader. This used to allow loading NetWatch
+from within an already-running kernel; it could be updated to work with the
+current memory layout, but is nonfunctional at the moment. See grubload/ for
+the preferred loader.
+
+grubload/
+	This is a multiboot-compliant simple ELF loader, for use with NetWatch
+aseg.elf images or similar. It loads its input file (passed via multiboot),
+invokes the startup routines, and then returns to real mode and starts the
+bootloader again.
+
+ich2/
+	Intel ICH2 northbridge drivers. A similar API should be implemeted to
+port NetWatch to other chipsets.
+
+ich7/
+	Intel ICH7 northbridge drivers. Incomplete / untested.
+
+include/
+	General header files.
+
+lib/
+	Library functions.
+
+lwip/
+	LWIP. (http://www.sics.se/~adam/lwip/)
+
+net/
+	Network card (currently only 3c90x) drivers, glue code, and the RFB
+and HTTP applications. Other network drivers should go here.
+
+netwatch/
+	Main startup and initialization code, logging, SMI response, VGA text
+overlay, and other general top-level sources. To build the main NetWatch binary,
+run "make" here to produce aseg.elf.
+ 
+pci/
+	PCI bus interface and BAR-clobbering routines.
+
+tools/
+	Assorted useful Linux command line tools we've found useful, such as
+for SMRAM segment manipulation, raw I/O port pokes, etc. These are not required
+to use NetWatch.
+
+video/
+	Framebuffer drivers for VGA text and TNT2 graphics consoles. Supporting
+graphics on other chipsets will require making a driver like that in tnt2.c.
+
+---
+
+Porting NetWatch to other systems will likely require:
+- A network driver, if you don't have a 3c905 (net/3c90x.c)
+- A video driver, if you are interested in graphics rather than VGA text,
+  and don't have an NVidia TNT2. (video/tnt2.c)
+- North- and southbridge drivers for your chipset. (ich2/)
+
+We have found that Intel generally provides easily-accessible chipset
+datasheets on their website; searching for a particular ICH series part on
+Google will likely lead to the correct datasheet without too much trouble.
+Other chipset manufacturers are likely to be significantly less cooperative.
+
+
