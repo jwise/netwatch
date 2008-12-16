@@ -6,12 +6,19 @@ taking over a second network card to provide a standard VNC server, such that
 a machine elsewhere on the network can see the text or graphics console of the
 machine and inject keystrokes as needed.
 
-	<description of SMM and what we do with it>.
+	System management mode, introduced with the 386SL, essentially allows
+system driver code to run outside of OS control, caused by a special interrupt
+pin on the CPU. This was originally intended for applications such as laptop
+fan control; it is also the mechansim by which USB legacy keyboard emulation
+occurs. When a system management interrupt occurs, the northbridge remaps
+portions of memory to expose previously-hidden code, and asserts an SMI# signal,
+causing the CPU to save all its state into system management RAM and vector to
+a magic entry point.
 
-	<benchmarks here>.
-
-	Because NetWatch is invisible to the OS, its CPU usage is difficult to
-monitor; we do so by comparing the MD5 throughput of the system with NetWatch
+	This is somewhat slow, and so there is a moderate performance impact
+caused by running NetWatch, more significant when a VNC session is open.
+Because NetWatch is invisible to the OS, its CPU usage is difficult to monitor;
+we do so by comparing the MD5 throughput of the system with NetWatch
 running versus without. The only way that the OS could detect this performance
 drain is by spinning tightly and watching for a sudden jump in the CPU's time
 stamp counters.
@@ -49,4 +56,5 @@ implementation requires:
   - BIOS which does not set the D_LCK bit. Any system old enough to be
     based on the ICH2 is very likely to have a suitable BIOS.
 
-	Current open issues are listed in the TODO file.
+	Current open issues are listed in the TODO file. See GUIDE for an
+overview of which source files do what.
