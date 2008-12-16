@@ -1,3 +1,11 @@
+; realmode.asm
+; Routines to return the system to real mode
+; NetWatch multiboot loader
+;
+; Copyright (c) 2008 Jacob Potter and Joshua Wise.  All rights reserved.
+; This program is free software; you can redistribute and/or modify it under
+; the terms found in the file LICENSE in the root of this source tree. 
+
 	[bits 32]	; Starts in 32 bit mode, then will drop back later.
 	org 0x4000
 entry:

@@ -1,9 +1,11 @@
-/** @file console-ext.h
+/* console-ext.h
+ * Console definitions
+ * NetWatch system management mode administration console
  *
- *  @brief Forward declarations for extended console functions
+ * Copyright (c) 2008 Jacob Potter and Joshua Wise.  All rights reserved.
+ * This program is free software; you can redistribute and/or modify it under
+ * the terms found in the file LICENSE in the root of this source tree. 
  *
- *  @author Joshua Wise (jwise) <joshua@joshuawise.com>
- *  @buf None known
  */
 
 #ifndef __CONSOLE_EXT_H

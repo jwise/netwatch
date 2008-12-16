@@ -1,3 +1,14 @@
+/* output.c
+ * Console output routines
+ * NetWatch multiboot loader
+ *
+ * Copyright (c) 2008 Jacob Potter and Joshua Wise.  All rights reserved.
+ * This program is free software; you can redistribute and/or modify it under
+ * the terms found in the file LICENSE in the root of this source tree. 
+ *
+ */
+
+
 #include <stdarg.h>
 #include <minilib.h>
 #include <console.h>
