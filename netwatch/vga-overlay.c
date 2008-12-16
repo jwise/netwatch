@@ -71,10 +71,12 @@ void strblit(char *src, int row, int col, int fill)
 
 void outlog()
 {
+/*
 	int y;
 
 	for (y = -LOG_ONSCREEN; y < 0; y++)
 		strblit(logents[(y + prodptr + LOGLEN) % LOGLEN], y + LOG_ONSCREEN, 40, 1);
+*/
 }
 
 void dolog(const char *s)
