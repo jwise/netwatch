@@ -351,8 +351,8 @@ static void close_conn(struct tcp_pcb *pcb, struct rfb_state *state) {
 	tcp_arg(pcb, NULL);
 	tcp_sent(pcb, NULL);
 	tcp_recv(pcb, NULL);
-	mem_free(state);
 	mem_free(state->blockbuf);
+	mem_free(state);
 	tcp_close(pcb);
 	outputf("close_conn: done");
 }
