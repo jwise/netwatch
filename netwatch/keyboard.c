@@ -18,126 +18,153 @@ static int kbd_inj_start = 0;
 static int kbd_inj_end = 0;
 int kbd_mode = 1;
 
-static const char scancodes2[][2][8] = {
-	['a'] = { "\x1c", "\xf0\x1c" },
-	['b'] = { "\x32", "\xf0\x32" },
-	['c'] = { "\x21", "\xf0\x21" },
-	['d'] = { "\x23", "\xf0\x23" },
-	['e'] = { "\x24", "\xf0\x24" },
-	['f'] = { "\x2b", "\xf0\x2b" },
-	['g'] = { "\x34", "\xf0\x34" },
-	['h'] = { "\x33", "\xf0\x33" },
-	['i'] = { "\x43", "\xf0\x43" }, 
-	['j'] = { "\x3b", "\xf0\x3b" },
-	['k'] = { "\x42", "\xf0\x42" },
-	['l'] = { "\x4b", "\xf0\x4b" },
-	['m'] = { "\x3a", "\xf0\x3a" },
-	['n'] = { "\x31", "\xf0\x31" },
-	['o'] = { "\x44", "\xf0\x44" },
-	['p'] = { "\x4d", "\xf0\x4d" },
-	['q'] = { "\x15", "\xf0\x15" },
-	['r'] = { "\x2d", "\xf0\x2d" },
-	['s'] = { "\x1b", "\xf0\x1b" },
-	['t'] = { "\x2c", "\xf0\x2c" },
-	['u'] = { "\x3c", "\xf0\x3c" },
-	['v'] = { "\x2a", "\xf0\x2a" },
-	['w'] = { "\x1d", "\xf0\x1d" },
-	['x'] = { "\x22", "\xf0\x22" },
-	['y'] = { "\x35", "\xf0\x35" },
-	['z'] = { "\x1a", "\xf0\x1a" },
-	['A'] = { "\x12\x1c", "\xf0\x1c\xf0\x12" },
-	['B'] = { "\x12\x32", "\xf0\x32\xf0\x12" },
-	['C'] = { "\x12\x21", "\xf0\x21\xf0\x12" },
-	['D'] = { "\x12\x23", "\xf0\x23\xf0\x12" },
-	['E'] = { "\x12\x24", "\xf0\x24\xf0\x12" },
-	['F'] = { "\x12\x2b", "\xf0\x2b\xf0\x12" },
-	['G'] = { "\x12\x34", "\xf0\x34\xf0\x12" },
-	['H'] = { "\x12\x33", "\xf0\x33\xf0\x12" },
-	['I'] = { "\x12\x43", "\xf0\x43\xf0\x12" },
-	['J'] = { "\x12\x3b", "\xf0\x3b\xf0\x12" },
-	['K'] = { "\x12\x42", "\xf0\x42\xf0\x12" },
-	['L'] = { "\x12\x4b", "\xf0\x4b\xf0\x12" },
-	['M'] = { "\x12\x3a", "\xf0\x3a\xf0\x12" },
-	['N'] = { "\x12\x31", "\xf0\x31\xf0\x12" },
-	['O'] = { "\x12\x44", "\xf0\x44\xf0\x12" },
-	['P'] = { "\x12\x4d", "\xf0\x4d\xf0\x12" },
-	['Q'] = { "\x12\x15", "\xf0\x15\xf0\x12" },
-	['R'] = { "\x12\x2d", "\xf0\x2d\xf0\x12" },
-	['S'] = { "\x12\x1b", "\xf0\x1b\xf0\x12" },
-	['T'] = { "\x12\x2c", "\xf0\x2c\xf0\x12" },
-	['U'] = { "\x12\x3c", "\xf0\x3c\xf0\x12" },
-	['V'] = { "\x12\x2a", "\xf0\x2a\xf0\x12" },
-	['W'] = { "\x12\x1d", "\xf0\x1d\xf0\x12" },
-	['X'] = { "\x12\x22", "\xf0\x22\xf0\x12" },
-	['Y'] = { "\x12\x35", "\xf0\x35\xf0\x12" },
-	['Z'] = { "\x12\x1a", "\xf0\x1a\xf0\x12" },
-	['`'] = { "\x0e", "\xf0\x0e" },
-	['~'] = { "\x12\x0e", "\xf0\x0e\xf0\x12" },
-	['1'] = { "\x16", "\xf0\x16" },
-	['!'] = { "\x12\x16", "\xf0\x16\xf0\x12" },
-	['2'] = { "\x1e", "\xf0\x1e" },
-	['@'] = { "\x12\x1e", "\xf0\x1e\xf0\x12" },
-	['3'] = { "\x26", "\xf0\x26" },
-	['#'] = { "\x12\x26", "\xf0\x26\xf0\x12" },
-	['4'] = { "\x25", "\xf0\x25" },
-	['$'] = { "\x12\x25", "\xf0\x25\xf0\x12" },
-	['5'] = { "\x2e", "\xf0\x2e" },
-	['%'] = { "\x12\x2e", "\xf0\x2e\xf0\x12" },
-	['6'] = { "\x36", "\xf0\x36" },
-	['^'] = { "\x12\x36", "\xf0\x36\xf0\x12" },
-	['7'] = { "\x3d", "\xf0\x3d" },
-	['&'] = { "\x12\x3d", "\xf0\x3d\xf0\x12" },
-	['8'] = { "\x3e", "\xf0\x3e" },
-	['*'] = { "\x12\x3e", "\xf0\x3e\xf0\x12" },
-	['9'] = { "\x46", "\xf0\x46" },
-	['('] = { "\x12\x46", "\xf0\x46\xf0\x12" },
-	['0'] = { "\x45", "\xf0\x45" },
-	[')'] = { "\x12\x45", "\xf0\x45\xf0\x12" },
-	['-'] = { "\x4e", "\xf0\x4e" },
-	['_'] = { "\x12\x4e", "\xf0\x4e\xf0\x12" },
-	['='] = { "\x55", "\xf0\x55" },
-	['+'] = { "\x12\x55", "\xf0\x55\xf0\x12" },
-	['['] = { "\x54", "\xf0\x54" },
-	['{'] = { "\x12\x54", "\xf0\x54\xf0\x12" },
-	[']'] = { "\x5b", "\xf0\x5b" },
-	['}'] = { "\x12\x5b", "\xf0\x5b\xf0\x12" },
-	['\\'] = { "\x5d", "\xf0\x5d" },
-	['|'] = { "\x12\x5d", "\xf0\x5d\xf0\x12" },
-	[';'] = { "\x4c", "\xf0\x4c" },
-	[':'] = { "\x12\x4c", "\xf0\x4c\xf0\x12" },
-	['\''] = { "\x52", "\xf0\x52" },
-	['"'] = { "\x12\x52", "\xf0\x52\xf0\x12" },
-	[','] = { "\x41", "\xf0\x41" },
-	['<'] = { "\x12\x41", "\xf0\x41\xf0\x12" },
-	['.'] = { "\x49", "\xf0\x49" },
-	['>'] = { "\x12\x49", "\xf0\x49\xf0\x12" },
-	['/'] = { "\x4a", "\xf0\x4a" },
-	[' '] = { "\x29", "\xf0\x29" },
-	['?'] = { "\x12\x4a", "\xf0\x4a\xf0\x12" }
+/* To save space, we don't store the first 32 characters in scancodes2, since
+ * they're control characters. Thus, the offset is the amount to subtract
+ * from a character before looking it up. */
+
+#define SC2_OFFSET	32
+#define SC2(x)		((x)-SC2_OFFSET) 
+
+/* Keys are stored in somewhat compressed form, to save on data space.
+ *
+ * The "press" and "release" strings contain scancodes to be injected
+ * into the buffer. However, they are modified beforehand, since two
+ * bytes isn't enough for all keys.
+ *
+ * Rules:
+ *  - If press starts with \x12 (shift down), then \xf0\x12 (shift up)
+ *    will be appended to release.
+ *  - If press starts with \xe0, then \xe0 is *pre*pended to release.
+ */
+
+struct keyspec {
+	char press[2];
+	char release[2];
 };
 
+static const struct keyspec scancodes2[] = {
+	[SC2('a')] = { "\x1c", "\xf0\x1c" },
+	[SC2('b')] = { "\x32", "\xf0\x32" },
+	[SC2('c')] = { "\x21", "\xf0\x21" },
+	[SC2('d')] = { "\x23", "\xf0\x23" },
+	[SC2('e')] = { "\x24", "\xf0\x24" },
+	[SC2('f')] = { "\x2b", "\xf0\x2b" },
+	[SC2('g')] = { "\x34", "\xf0\x34" },
+	[SC2('h')] = { "\x33", "\xf0\x33" },
+	[SC2('i')] = { "\x43", "\xf0\x43" }, 
+	[SC2('j')] = { "\x3b", "\xf0\x3b" },
+	[SC2('k')] = { "\x42", "\xf0\x42" },
+	[SC2('l')] = { "\x4b", "\xf0\x4b" },
+	[SC2('m')] = { "\x3a", "\xf0\x3a" },
+	[SC2('n')] = { "\x31", "\xf0\x31" },
+	[SC2('o')] = { "\x44", "\xf0\x44" },
+	[SC2('p')] = { "\x4d", "\xf0\x4d" },
+	[SC2('q')] = { "\x15", "\xf0\x15" },
+	[SC2('r')] = { "\x2d", "\xf0\x2d" },
+	[SC2('s')] = { "\x1b", "\xf0\x1b" },
+	[SC2('t')] = { "\x2c", "\xf0\x2c" },
+	[SC2('u')] = { "\x3c", "\xf0\x3c" },
+	[SC2('v')] = { "\x2a", "\xf0\x2a" },
+	[SC2('w')] = { "\x1d", "\xf0\x1d" },
+	[SC2('x')] = { "\x22", "\xf0\x22" },
+	[SC2('y')] = { "\x35", "\xf0\x35" },
+	[SC2('z')] = { "\x1a", "\xf0\x1a" },
+	[SC2('A')] = { "\x12\x1c", "\xf0\x1c" },
+	[SC2('B')] = { "\x12\x32", "\xf0\x32" },
+	[SC2('C')] = { "\x12\x21", "\xf0\x21" },
+	[SC2('D')] = { "\x12\x23", "\xf0\x23" },
+	[SC2('E')] = { "\x12\x24", "\xf0\x24" },
+	[SC2('F')] = { "\x12\x2b", "\xf0\x2b" },
+	[SC2('G')] = { "\x12\x34", "\xf0\x34" },
+	[SC2('H')] = { "\x12\x33", "\xf0\x33" },
+	[SC2('I')] = { "\x12\x43", "\xf0\x43" },
+	[SC2('J')] = { "\x12\x3b", "\xf0\x3b" },
+	[SC2('K')] = { "\x12\x42", "\xf0\x42" },
+	[SC2('L')] = { "\x12\x4b", "\xf0\x4b" },
+	[SC2('M')] = { "\x12\x3a", "\xf0\x3a" },
+	[SC2('N')] = { "\x12\x31", "\xf0\x31" },
+	[SC2('O')] = { "\x12\x44", "\xf0\x44" },
+	[SC2('P')] = { "\x12\x4d", "\xf0\x4d" },
+	[SC2('Q')] = { "\x12\x15", "\xf0\x15" },
+	[SC2('R')] = { "\x12\x2d", "\xf0\x2d" },
+	[SC2('S')] = { "\x12\x1b", "\xf0\x1b" },
+	[SC2('T')] = { "\x12\x2c", "\xf0\x2c" },
+	[SC2('U')] = { "\x12\x3c", "\xf0\x3c" },
+	[SC2('V')] = { "\x12\x2a", "\xf0\x2a" },
+	[SC2('W')] = { "\x12\x1d", "\xf0\x1d" },
+	[SC2('X')] = { "\x12\x22", "\xf0\x22" },
+	[SC2('Y')] = { "\x12\x35", "\xf0\x35" },
+	[SC2('Z')] = { "\x12\x1a", "\xf0\x1a" },
+	[SC2('`')] = { "\x0e", "\xf0\x0e" },
+	[SC2('~')] = { "\x12\x0e", "\xf0\x0e" },
+	[SC2('1')] = { "\x16", "\xf0\x16" },
+	[SC2('!')] = { "\x12\x16", "\xf0\x16" },
+	[SC2('2')] = { "\x1e", "\xf0\x1e" },
+	[SC2('@')] = { "\x12\x1e", "\xf0\x1e" },
+	[SC2('3')] = { "\x26", "\xf0\x26" },
+	[SC2('#')] = { "\x12\x26", "\xf0\x26" },
+	[SC2('4')] = { "\x25", "\xf0\x25" },
+	[SC2('$')] = { "\x12\x25", "\xf0\x25" },
+	[SC2('5')] = { "\x2e", "\xf0\x2e" },
+	[SC2('%')] = { "\x12\x2e", "\xf0\x2e" },
+	[SC2('6')] = { "\x36", "\xf0\x36" },
+	[SC2('^')] = { "\x12\x36", "\xf0\x36" },
+	[SC2('7')] = { "\x3d", "\xf0\x3d" },
+	[SC2('&')] = { "\x12\x3d", "\xf0\x3d" },
+	[SC2('8')] = { "\x3e", "\xf0\x3e" },
+	[SC2('*')] = { "\x12\x3e", "\xf0\x3e" },
+	[SC2('9')] = { "\x46", "\xf0\x46" },
+	[SC2('(')] = { "\x12\x46", "\xf0\x46" },
+	[SC2('0')] = { "\x45", "\xf0\x45" },
+	[SC2(')')] = { "\x12\x45", "\xf0\x45" },
+	[SC2('-')] = { "\x4e", "\xf0\x4e" },
+	[SC2('_')] = { "\x12\x4e", "\xf0\x4e" },
+	[SC2('=')] = { "\x55", "\xf0\x55" },
+	[SC2('+')] = { "\x12\x55", "\xf0\x55" },
+	[SC2('[')] = { "\x54", "\xf0\x54" },
+	[SC2('{')] = { "\x12\x54", "\xf0\x54" },
+	[SC2(']')] = { "\x5b", "\xf0\x5b" },
+	[SC2('}')] = { "\x12\x5b", "\xf0\x5b" },
+	[SC2('\\')] = { "\x5d", "\xf0\x5d" },
+	[SC2('|')] = { "\x12\x5d", "\xf0\x5d" },
+	[SC2(';')] = { "\x4c", "\xf0\x4c" },
+	[SC2(':')] = { "\x12\x4c", "\xf0\x4c" },
+	[SC2('\'')] = { "\x52", "\xf0\x52" },
+	[SC2('"')] = { "\x12\x52", "\xf0\x52" },
+	[SC2(',')] = { "\x41", "\xf0\x41" },
+	[SC2('<')] = { "\x12\x41", "\xf0\x41" },
+	[SC2('.')] = { "\x49", "\xf0\x49" },
+	[SC2('>')] = { "\x12\x49", "\xf0\x49" },
+	[SC2('/')] = { "\x4a", "\xf0\x4a" },
+	[SC2(' ')] = { "\x29", "\xf0\x29" },
+	[SC2('?')] = { "\x12\x4a", "\xf0\x4a" }
+};
 
-static const char scancodes2high[][2][8] = {
-	[0x08] = { "\x66", "\xf0\x66" },
-	[0x09] = { "\x0d", "\xf0\x0d" },
-	[0x0d] = { "\x5a", "\xf0\x5a" },
-	[0x1b] = { "\x76", "\xf0\x76" },
-	[0x63] = { "\xE0\x70", "\xE0\xF0\x70" },
-	[0xff] = { "\xE0\x71", "\xE0\xF0\x71" },
-	[0x50] = { "\xE0\x6C", "\xE0\xF0\x6C" },
-	[0x57] = { "\xE0\x69", "\xE0\xF0\x69" },
-	[0x55] = { "\xE0\x75", "\xE0\xF0\x75" },
-	[0x56] = { "\xE0\x7A", "\xE0\xF0\x7A" },
-        [0x51] = { "\xE0\x74", "\xE0\xF0\x74" },
-        [0x52] = { "\xE0\x75", "\xE0\xF0\x75" },
-        [0x53] = { "\xE0\x6B", "\xE0\xF0\x6B" },
-        [0x54] = { "\xE0\x72", "\xE0\xF0\x72" },
-	[0xe1] = { "\x12", "\xf0\x12" },
-	[0xe2] = { "\x59", "\xf0\x59" },
-	[0xe3] = { "\x14", "\xf0\x14" },
-	[0xe4] = { "\xE0\x14", "\xE0\xF0\x14" },
-	[0xe9] = { "\x11", "\xf0\x11" },
-	[0xea] = { "\xE0\x11", "\xE0\xF0\x11" }
+static const struct {
+	char index;
+	struct keyspec data;
+} scancodes2high[] = {
+	{ 0x08, { "\x66", "\xf0\x66" } },
+	{ 0x09, { "\x0d", "\xf0\x0d" } },
+	{ 0x0d, { "\x5a", "\xf0\x5a" } },
+	{ 0x1b, { "\x76", "\xf0\x76" } },
+	{ 0x63, { "\xe0\x70", "\xF0\x70" } },
+	{ 0xff, { "\xe0\x71", "\xF0\x71" } },
+	{ 0x50, { "\xe0\x6C", "\xF0\x6C" } },
+	{ 0x57, { "\xe0\x69", "\xF0\x69" } },
+	{ 0x55, { "\xe0\x75", "\xF0\x75" } },
+	{ 0x56, { "\xe0\x7A", "\xF0\x7A" } },
+        { 0x51, { "\xe0\x74", "\xF0\x74" } },
+        { 0x52, { "\xe0\x75", "\xF0\x75" } },
+        { 0x53, { "\xe0\x6B", "\xF0\x6B" } },
+        { 0x54, { "\xe0\x72", "\xF0\x72" } },
+	{ 0xe1, { "\x12", "" } },
+	{ 0xe2, { "\x59", "\xf0\x59" } },
+	{ 0xe3, { "\x14", "\xf0\x14" } },
+	{ 0xe4, { "\xe0\x14", "\xF0\x14" } },
+	{ 0xe9, { "\x11", "\xf0\x11" } },
+	{ 0xea, { "\xe0\x11", "\xF0\x11" } },
+	{ 0x00, { "", "" } }
 };
 
 const unsigned char convert_table[] = {
@@ -180,6 +207,11 @@ unsigned char sc_convert_1(unsigned char in)
 
 void kbd_inject_scancode (unsigned char sc)
 {
+	if (kbd_mode == 1) {
+		sc = sc_convert_1(sc);
+		if (!sc) return;
+	}
+
 	outputf("Buffering %02x", sc);
 	kbd_inj_buffer[kbd_inj_end] = sc;
 	kbd_inj_end += 1;
@@ -188,30 +220,45 @@ void kbd_inject_scancode (unsigned char sc)
 
 void kbd_inject_keysym(uint32_t k, int downflag)
 {
-	const char * c;
+	const struct keyspec * ks = 0;
+	const char * c = 0;
+	int i;
 
-	if ((k & 0xFFFFFF00) == 0)
+	if ((k & 0xFFFFFF00) == 0 && (k & 0xFF) > SC2_OFFSET)
 	{ 
-		c = scancodes2[k & 0xFF][downflag ? 0 : 1];
+		ks = &scancodes2[SC2(k & 0xFF)];
 	} else if ((k & 0xFFFFFF00) == 0xFF00) {
-		c = scancodes2high[k & 0xFF][downflag ? 0 : 1];
+		for (i = 0; scancodes2high[i].index; i++) {
+			if ((k & 0xff) == scancodes2high[i].index) {
+				ks = &scancodes2high[i].data;
+				break;
+			}
+		}
 	} else {
 		return;
 	}
 
-	if (!c) return;
+	if (!ks) return;
 
-	if (kbd_mode == 1) {
-		while (*c) {
-			char cconv = sc_convert_1(*c);
-			if (cconv) kbd_inject_scancode(cconv);
-			c++;
-		}
-	} else {
-		while (*c) {
-			kbd_inject_scancode(*c);
-			c++;
-		}
+	if (downflag)
+		c = ks->press;
+	else
+		c = ks->release;
+
+	i = 0;
+
+	if (ks->press[0] == '\xe0' && !downflag)
+		kbd_inject_scancode('\xe0');
+
+	while (*c && i < 2) {
+		kbd_inject_scancode(*c);
+		c++;
+		i++;
+	}
+
+	if (ks->press[0] == '\x12' && !downflag) {
+		kbd_inject_scancode('\xf0');
+		kbd_inject_scancode('\x12');
 	}
 }
 

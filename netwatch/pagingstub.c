@@ -54,6 +54,7 @@ void ps_switch_stack (void (*call)(), int stack);
 
 #define	CR0_PG	0x80000000
 #define CR4_PSE	0x00000010
+#define CR4_OSFXSR 0x00000200
 
 #define MAP_FLAGS	(PTE_PRESENT | PTE_READ_WRITE)
 
@@ -183,54 +184,66 @@ static void pt_setup(int tseg_start, int tseg_size) {
 
 void init_and_run(void)
 {
+	DBG(0x0A);
+
 	if (!initialized)
 	{
+		DBG(0x0B);
 		smi_init();
 		initialized = 1;
 	}
 	
+	DBG(0x0C);
 	smi_entry();
+
+	DBG(0xCC);
 }
 
 void c_entry(void)
 {
 	paging_enb = 0;
 
-	outb(0x80, 0x01);	
+	DBG(0x01);
+
 	if (!initialized)
 		pt_setup(0x1FF80000, 0x80000);
-	outb(0x80, 0x02);
-		
+
+	DBG(0x02);
+
 	/* Enable paging. */
 	set_cr3((unsigned long)pd);
-	set_cr4(get_cr4() | CR4_PSE);	/* ITT, we 4MByte page. */ 
+	set_cr4(get_cr4() | CR4_PSE | CR4_OSFXSR);	/* ITT, we 4MByte page. */ 
 	set_cr0(get_cr0() | CR0_PG);
-	outb(0x80, 0x03);
+
+	DBG(0x03);
 	paging_enb = 1;
 
 	/* If this is the first goround, copy in data. */
 	if (!initialized)
 	{
 		unsigned char *p;
-		
-		outb(0x80, 0x04);
+
+		DBG(0x04);
+
 		for (p = (void *)0x200000; (void *)p < (void *)&_bss; p++)
 			*p = *(p + 0x100000);
 		for (p = (void *)&_bss; (void *)p < (void *)&_bssend; p++)
 			*p = 0;
-		outb(0x80, 0x05);
+
+		DBG(0x05);
 		
 		/* Only now is it safe to call other functions. */
 		serial_init();
+		DBG(0x06);
 		dolog("Evacuation to TSEG complete.");
+		DBG(0x07);
 	}
-	
-	outb(0x80, 0x06);
 
+	DBG(0x08);
 	traps_install();
 	
-	outb(0x80, 0x07);
+	DBG(0x09);
+	ps_switch_stack(init_and_run, 0xa2000);
 
-	ps_switch_stack(init_and_run, 0x270000);
-	outb(0x80, 0xFA);
+	DBG(0xFA);
 }

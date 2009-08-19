@@ -29,7 +29,11 @@ extern void _memcpy(void *dest, const void *src, int bytes);
 
 #define LWIP_STATS 1
 #define LWIP_STATS_DISPLAY 1
-#define U16_F "d"
-#define U32_F "d"
+#define U16_F "u"
+#define S16_F "d"
+#define X16_F "x"
+#define U32_F "u"
+#define S32_F "d"
+#define X32_F "x"
 
 #endif

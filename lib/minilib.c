@@ -74,6 +74,17 @@ void memset(void *dest, int data, int bytes)
 		*(cdest++) = (unsigned char)data;
 }
 
+void *memchr(const void *buf, char c, int maxlen)
+{
+	const char * cbuf = buf;
+	while (maxlen--)
+	{
+		if (*cbuf == c) return (void *)cbuf;
+		cbuf++;
+	}
+	return 0;
+}
+
 void memmove(void *dest, void *src, int bytes)
 {
 	char * cdest = dest;
@@ -155,6 +166,12 @@ void tohex(char *s, unsigned long l)
 		s[i] = hexarr[l >> 28];
 		l <<= 4;
 	}
+}
+
+void btohex(char *s, unsigned char c)
+{
+	s[0] = hexarr[c >> 4];
+	s[1] = hexarr[c & 0xF];
 }
 
 void puthex(unsigned long l)

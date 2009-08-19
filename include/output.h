@@ -14,4 +14,10 @@
 extern void (*output)(const char *s);
 extern void (*outputf)(const char *s, ...);
 
+#if DEBUG80
+#define DBG(x)	outb(0x80, x)
+#else
+#define DBG(x)
+#endif
+
 #endif

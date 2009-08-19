@@ -38,13 +38,13 @@
 #include <paging.h>
 #include <output.h>
 
+static char http_output_buffer[1024];
+
 /*-----------------------------------------------------------------------------------*/
 
 void handle_regs(struct fs_file *file)
 {
-  static char buf[2048];
-  
-  sprintf(buf,
+  file->len = snprintf(http_output_buffer, sizeof(http_output_buffer),
     "<html><head><title>Registers</title></head><body>"
     "<p>At the time you requested this page, the system's registers were:</p>"
     "<tt><pre>"
@@ -64,54 +64,57 @@ void handle_regs(struct fs_file *file)
     *(unsigned long*)0xAFFF8,
     *(unsigned long*)0xAFFF0,
     *(unsigned long*)0xAFFF4);
-    
   
-  file->data = buf;
-  file->len = strlen(buf)-1;
+  file->data = http_output_buffer;
 }
+
+#define LEFT (sizeof(http_output_buffer) - len)
 
 void handle_backtrace(struct fs_file *file)
 {
-  static char buf[2048];
-  static char buf2[64];
   int i = 10;
+  int len;
   unsigned long *pebp, *peip;
   unsigned long ebp;
   unsigned long cr3;
+
+  char * buf = http_output_buffer;
   
   strcpy(buf, "<html><head><title>Backtrace</title></head><body><tt><pre>");
+  len = strlen(buf);
   ebp = *(unsigned long *)0xAFFE4;
   cr3 = *(unsigned long *)0xAFFF8;
   
-  sprintf(buf2, "0x%08x, from\n", *(unsigned long*)0xAFFF0);
-  strcat(buf, buf2);
+  len += snprintf(buf + len, LEFT, "0x%08x, from\n", *(unsigned long*)0xAFFF0);
   
   /* I never thought I'd do this again. */
   while ((peip = demap(cr3, ebp+4)) != 0x0 && i--)
   {
-    sprintf(buf2, "0x%08x, from\n", *peip);
-    strcat(buf, buf2);
+    len += snprintf(buf + len, LEFT, "0x%08x, from\n", *peip);
+
     pebp = demap(cr3, ebp);
     if (!pebp)
     {
-      strcat(buf, "&lt;unreadable %ebp&gt;\n");
+      len += snprintf(buf + len, LEFT, "&lt;unreadable %ebp&gt;\n");
       break;
     }
     if (ebp >= *pebp && *pebp)
     {
-      strcat(buf, "&lt;recursive %ebp&gt;\n");
+      len += snprintf(buf + len, LEFT, "&lt;recursive %ebp&gt;\n");
       break;
     }
     ebp = *pebp;
   }
+
   if (i == -1)
-    strcat(buf, "...\n");
+    len += snprintf(buf + len, LEFT, "...\n");
   else
-    strcat(buf, "&lt;root&gt;");
-  strcat(buf, "</pre></tt></body></html>");
+    len += snprintf(buf + len, LEFT, "&lt;root&gt;");
+
+  len += snprintf(buf + len, LEFT, "</pre></tt></body></html>");
   
   file->data = buf;
-  file->len = strlen(buf)-1;
+  file->len = len;
 }
 
 void handle_reboot(struct fs_file *file)

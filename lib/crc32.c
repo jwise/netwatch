@@ -3,7 +3,7 @@
 /* code from http://www.faqs.org/faqs/compression-faq/part1/section-26.html,
  * presumed public domain */
 
-uint32_t crc32_table[256];
+static uint32_t crc32_table[256];
 
 uint32_t crc32(uint8_t *buf, int len, uint32_t crc0)
 {
