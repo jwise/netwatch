@@ -13,6 +13,7 @@
 #include <pci-bother.h>
 #include <output.h>
 #include <minilib.h>
+#include <tables.h>
 #include <lwip/init.h>
 #include "net.h"
 
@@ -27,8 +28,6 @@
 #include <lwip/tcp.h>
 #include "netif/etharp.h"
 #include "netif/ppp_oe.h"
-
-#include "rfb.h"
 
 static struct nic *_nic = 0x0;
 static struct netif _netif;
@@ -139,15 +138,19 @@ int eth_register(struct nic *nic)
 	return 0;
 }
 
+typedef void(*thunk_t)();
+
+TABLE(thunk_t, protocols);
+
 void eth_init()
 {
-	extern void httpd_init();
+	int i;
 	
 	/* Required for DMA to work. :( */
 	smram_tseg_set_state(SMRAM_TSEG_OPEN);
+
 	lwip_init();
-	httpd_init();
 
-	rfb_init();
-
+	for (i = 0; i < TABLE_LENGTH(protocols); i++)
+		protocols_table[i]();
 }

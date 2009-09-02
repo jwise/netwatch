@@ -325,7 +325,7 @@ memp_malloc_fn(memp_t type, const char* file, const int line)
                 ((mem_ptr_t)memp % MEM_ALIGNMENT) == 0);
     memp = (struct memp*)((u8_t*)memp + MEMP_SIZE);
   } else {
-    LWIP_DEBUGF(MEMP_DEBUG | 2, ("memp_malloc: out of memory in pool %s\n", memp_desc[type]));
+    LWIP_DEBUGF(MEMP_DEBUG | 2, ("memp_malloc: OOM in pool %s\n", memp_desc[type]));
 #if MEMP_STATS
     ++lwip_stats.memp[type].err;
 #endif /* MEMP_STATS */

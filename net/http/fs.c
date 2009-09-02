@@ -36,35 +36,26 @@
 #include <io.h>
 #include <minilib.h>
 #include <paging.h>
+#include <demap.h>
 #include <output.h>
+#include <state.h>
 
-static char http_output_buffer[1024];
+static char http_output_buffer[1280];
 
 /*-----------------------------------------------------------------------------------*/
 
 void handle_regs(struct fs_file *file)
 {
-  file->len = snprintf(http_output_buffer, sizeof(http_output_buffer),
-    "<html><head><title>Registers</title></head><body>"
-    "<p>At the time you requested this page, the system's registers were:</p>"
-    "<tt><pre>"
-    "%%eax: 0x%08x    %%ebx: 0x%08x    %%ecx: 0x%08x    %%edx: 0x%08x\n"
-    "%%ebp: 0x%08x    %%esi: 0x%08x    %%edi: 0x%08x    %%esp: 0x%08x\n"
-    "%%cr0: 0x%08x    %%cr3: 0x%08x    %%eip: 0x%08x    %%eflags: 0x%08x\n"
-    "</pre></tt></body></html>",
-    *(unsigned long*)0xAFFD0,
-    *(unsigned long*)0xAFFDC,
-    *(unsigned long*)0xAFFD4,
-    *(unsigned long*)0xAFFD8,
-    *(unsigned long*)0xAFFE4,
-    *(unsigned long*)0xAFFE8,
-    *(unsigned long*)0xAFFEC,
-    *(unsigned long*)0xAFFE0,
-    *(unsigned long*)0xAFFFC,
-    *(unsigned long*)0xAFFF8,
-    *(unsigned long*)0xAFFF0,
-    *(unsigned long*)0xAFFF4);
-  
+  int i;
+  int len;
+
+  len = snprintf(http_output_buffer, sizeof(http_output_buffer), "<html><pre>");
+
+  for (i = 0; i < NUM_REGISTERS; i++) {
+    len += state_dump_reg(http_output_buffer + len, sizeof(http_output_buffer) - len, i);
+  }
+
+  file->len = len;
   file->data = http_output_buffer;
 }
 
@@ -74,36 +65,56 @@ void handle_backtrace(struct fs_file *file)
 {
   int i = 10;
   int len;
-  unsigned long *pebp, *peip;
-  unsigned long ebp;
-  unsigned long cr3;
+  void *pebp, *peip;
+  uint64_t bp, next;
+
+  int longmode = (get_operating_mode() == LONG_64BIT);
 
   char * buf = http_output_buffer;
   
   strcpy(buf, "<html><head><title>Backtrace</title></head><body><tt><pre>");
   len = strlen(buf);
-  ebp = *(unsigned long *)0xAFFE4;
-  cr3 = *(unsigned long *)0xAFFF8;
+
+  bp = state_get_reg(STATE_REG_RIP);
+
+  if (longmode)
+    len += snprintf(buf + len, LEFT, "0x%08x%08x, from\n", (uint32_t)(bp >> 32), (uint32_t)bp);
+  else
+    len += snprintf(buf + len, LEFT, "0x%08x, from\n", (uint32_t)bp);
   
-  len += snprintf(buf + len, LEFT, "0x%08x, from\n", *(unsigned long*)0xAFFF0);
+  bp = state_get_reg(STATE_REG_RBP);
   
   /* I never thought I'd do this again. */
-  while ((peip = demap(cr3, ebp+4)) != 0x0 && i--)
+  while ((peip = demap(bp+(longmode?8:4))) != 0x0 && i--)
   {
-    len += snprintf(buf + len, LEFT, "0x%08x, from\n", *peip);
+    if (longmode) {
+      next = *(uint64_t *)peip;
+      len += snprintf(buf + len, LEFT, "0x%08x%08x, from\n", (uint32_t)(next >> 32), (uint32_t)next);
+    } else {
+      next = *(uint32_t *)peip;
+      len += snprintf(buf + len, LEFT, "0x%08x, from\n", (uint32_t)next);
+    }
 
-    pebp = demap(cr3, ebp);
+    pebp = demap(bp);
+
     if (!pebp)
     {
-      len += snprintf(buf + len, LEFT, "&lt;unreadable %ebp&gt;\n");
+      len += snprintf(buf + len, LEFT, "&lt;unreadable frame&gt;\n");
       break;
     }
-    if (ebp >= *pebp && *pebp)
+
+    if (longmode)
+      next = *(uint64_t *)pebp;
+    else
+      next = *(uint32_t *)pebp;
+
+    if (bp >= next && next)
     {
-      len += snprintf(buf + len, LEFT, "&lt;recursive %ebp&gt;\n");
+      len += snprintf(buf + len, LEFT, "&lt;recursive frame&gt;\n");
       break;
     }
-    ebp = *pebp;
+
+    bp = next;
   }
 
   if (i == -1)

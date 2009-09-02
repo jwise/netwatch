@@ -13,11 +13,12 @@
 #include <output.h>
 #include <fb.h>
 #include <keyboard.h>
+#include <tables.h>
 
 #include "lwip/tcp.h"
 #include "lwip/stats.h"
 
-#include "rfb.h"
+#define RFB_PORT		5900
 
 #define SET_PIXEL_FORMAT	0
 #define SET_ENCODINGS		2
@@ -654,7 +655,7 @@ static err_t rfb_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
 	return ERR_OK;
 }
 
-void rfb_init() {
+static void rfb_init() {
 	struct tcp_pcb *pcb;
 
 	init_server_info();
@@ -664,3 +665,5 @@ void rfb_init() {
 	pcb = tcp_listen(pcb);
 	tcp_accept(pcb, rfb_accept);
 }
+
+PROTOCOL(rfb_init);

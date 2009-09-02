@@ -23,5 +23,11 @@ set_cr0_cont:                           # Hey, here we are!
 ps_switch_stack:
   mov 4(%esp), %eax
   mov 8(%esp), %esp   
+  # Put a sentinel value (FEEDFACE) at the top of the stack
+  mov $0xCEFAEDFE, %edx
+  push %edx
+  push %edx
+  push %edx
+  push %edx
   call *%eax
   rsm

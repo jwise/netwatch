@@ -32,6 +32,7 @@
 
 #include <minilib.h>
 #include <output.h>
+#include <tables.h>
 #include "lwip/debug.h"
 
 #include "lwip/stats.h"
@@ -258,3 +259,4 @@ httpd_init(void)
 }
 /*-----------------------------------------------------------------------------------*/
 
+PROTOCOL(httpd_init);

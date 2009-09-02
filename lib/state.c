@@ -34,6 +34,8 @@
 
 #include "state.h"
 #include <cpuid.h>
+#include <output.h>
+#include <minilib.h>
 
 /* Size flags. */
 #define SZ_BYTE		0x10000000
@@ -66,7 +68,8 @@ static const uint32_t offset_table_legacy[] = {
 	[STATE_REG_DS]		= 0xffb4 | SZ_DWORD,
 	[STATE_REG_ES]		= 0xffa8 | SZ_DWORD,
 	[STATE_REG_FS]		= 0xffb8 | SZ_DWORD,
-	[STATE_REG_GS]		= 0xffbc | SZ_DWORD
+	[STATE_REG_GS]		= 0xffbc | SZ_DWORD,
+	[STATE_REG_IDT_BASE]	= 0xff94 | SZ_DWORD
 };
 
 #define MAX_REG_LEGACY (sizeof(offset_table_legacy)/sizeof(uint32_t))
@@ -87,15 +90,35 @@ static const uint32_t offset_table_amd64[] = {
 	[STATE_REG_EBP]		= 0xffd0 | SZ_DWORD,
 	[STATE_REG_EIP]		= 0xff78 | SZ_DWORD,
 	[STATE_REG_EFLAGS]	= 0xff70 | SZ_DWORD,
-	[STATE_REG_CR0]		= 0xff58 | SZ_DWORD,
-	[STATE_REG_CR3]		= 0xff50 | SZ_DWORD,
+	[STATE_REG_CR0]		= 0xff58 | SZ_QWORD,
+	[STATE_REG_CR3]		= 0xff50 | SZ_QWORD,
 
-	[STATE_REG_CS]		= 0xfe10 | SZ_DWORD,
-	[STATE_REG_SS]		= 0xfe20 | SZ_DWORD,
-	[STATE_REG_DS]		= 0xfe30 | SZ_DWORD,
-	[STATE_REG_ES]		= 0xfe00 | SZ_DWORD,
-	[STATE_REG_FS]		= 0xfe40 | SZ_DWORD,
-	[STATE_REG_GS]		= 0xfe50 | SZ_DWORD,
+	[STATE_REG_CS]		= 0xfe10 | SZ_WORD,
+	[STATE_REG_CS_ATTRIB]	= 0xfe12 | SZ_WORD,
+	[STATE_REG_CS_BASE]	= 0xfe18 | SZ_QWORD,
+	[STATE_REG_CS_LIMIT]	= 0xfe14 | SZ_DWORD,
+	[STATE_REG_SS]		= 0xfe20 | SZ_WORD,
+	[STATE_REG_SS_ATTRIB]	= 0xfe22 | SZ_WORD,
+	[STATE_REG_SS_BASE]	= 0xfe28 | SZ_QWORD,
+	[STATE_REG_SS_LIMIT]	= 0xfe24 | SZ_DWORD,
+	[STATE_REG_DS]		= 0xfe30 | SZ_WORD,
+	[STATE_REG_DS_ATTRIB]	= 0xfe32 | SZ_WORD,
+	[STATE_REG_DS_BASE]	= 0xfe38 | SZ_QWORD,
+	[STATE_REG_DS_LIMIT]	= 0xfe34 | SZ_DWORD,
+	[STATE_REG_ES]		= 0xfe00 | SZ_WORD,
+	[STATE_REG_ES_ATTRIB]	= 0xfe02 | SZ_WORD,
+	[STATE_REG_ES_BASE]	= 0xfe08 | SZ_QWORD,
+	[STATE_REG_ES_LIMIT]	= 0xfe04 | SZ_DWORD,
+	[STATE_REG_FS]		= 0xfe40 | SZ_WORD,
+	[STATE_REG_FS_ATTRIB]	= 0xfe42 | SZ_WORD,
+	[STATE_REG_FS_BASE]	= 0xfe48 | SZ_QWORD,
+	[STATE_REG_FS_LIMIT]	= 0xfe44 | SZ_DWORD,
+	[STATE_REG_GS]		= 0xfe50 | SZ_WORD,
+	[STATE_REG_GS_ATTRIB]	= 0xfe52 | SZ_WORD,
+	[STATE_REG_GS_BASE]	= 0xfe58 | SZ_QWORD,
+	[STATE_REG_GS_LIMIT]	= 0xfe54 | SZ_DWORD,
+	[STATE_REG_IDT_BASE]	= 0xfe88 | SZ_QWORD,
+	[STATE_REG_IDT_LIMIT]	= 0xfe84 | SZ_DWORD,
 
 	[STATE_REG_RAX]		= 0xfff8 | SZ_QWORD,
 	[STATE_REG_RBX]		= 0xffe0 | SZ_QWORD,
@@ -113,7 +136,75 @@ static const uint32_t offset_table_amd64[] = {
 	[STATE_REG_R13]		= 0xff90 | SZ_QWORD,
 	[STATE_REG_R14]		= 0xff88 | SZ_QWORD,
 	[STATE_REG_R15]		= 0xff80 | SZ_QWORD,
-	[STATE_REG_RIP]		= 0xff78 | SZ_QWORD
+	[STATE_REG_RIP]		= 0xff78 | SZ_QWORD,
+	[STATE_REG_RFLAGS]	= 0xff70 | SZ_QWORD,
+
+	[STATE_REG_EFER]	= 0xfed0 | SZ_QWORD
+};
+
+static const char register_names[][4] = {
+	[STATE_REV]		= "sREV",
+	[STATE_REG_SMBASE]	= "sBSE",
+	[STATE_REG_IORESTART]	= "IOrs",
+	[STATE_REG_HALTRESTART]	= "HLrs",
+
+	[STATE_REG_EAX]		= "%eax",
+	[STATE_REG_EBX]		= "%ebx",
+	[STATE_REG_ECX]		= "%ecx",
+	[STATE_REG_EDX]		= "%edx",
+	[STATE_REG_ESI]		= "%esi",
+	[STATE_REG_EDI]		= "%edi",
+	[STATE_REG_ESP]		= "%esp",
+	[STATE_REG_EBP]		= "%ebp",
+	[STATE_REG_EIP]		= "%eip",
+	[STATE_REG_EFLAGS]	= "%eFL",
+	[STATE_REG_CR0]		= "%cr0",
+	[STATE_REG_CR3]		= "%cr3",
+
+	[STATE_REG_CS]		= "%cs ",
+	[STATE_REG_CS_ATTRIB]	= "csAT",
+	[STATE_REG_CS_BASE]	= "csBA",
+	[STATE_REG_CS_LIMIT]	= "csLI",
+	[STATE_REG_SS]		= "%ss ",
+	[STATE_REG_SS_ATTRIB]	= "ssAT",
+	[STATE_REG_SS_BASE]	= "ssBA",
+	[STATE_REG_SS_LIMIT]	= "ssLI",
+	[STATE_REG_DS]		= "%ds ",
+	[STATE_REG_DS_ATTRIB]	= "dsAT",
+	[STATE_REG_DS_BASE]	= "dsBA",
+	[STATE_REG_DS_LIMIT]	= "dsLI",
+	[STATE_REG_ES]		= "%es ",
+	[STATE_REG_ES_ATTRIB]	= "esAT",
+	[STATE_REG_ES_BASE]	= "esBA",
+	[STATE_REG_ES_LIMIT]	= "esLI",
+	[STATE_REG_FS]		= "%fs ",
+	[STATE_REG_FS_ATTRIB]	= "fsAT",
+	[STATE_REG_FS_BASE]	= "fsBA",
+	[STATE_REG_FS_LIMIT]	= "fsLI",
+	[STATE_REG_GS]		= "%gs ",
+	[STATE_REG_GS_ATTRIB]	= "gsAT",
+	[STATE_REG_GS_BASE]	= "gsBA",
+	[STATE_REG_GS_LIMIT]	= "gsLI",
+
+	[STATE_REG_RAX]		= "%rax",
+	[STATE_REG_RBX]		= "%rbx",
+	[STATE_REG_RCX]		= "%rcx",
+	[STATE_REG_RDX]		= "%rdx",
+	[STATE_REG_RSI]		= "%rsi",
+	[STATE_REG_RDI]		= "%rdi",
+	[STATE_REG_RSP]		= "%rsp",
+	[STATE_REG_RBP]		= "%rbp",
+	[STATE_REG_R8]		= "%r8 ",
+	[STATE_REG_R9]		= "%r9 ",
+	[STATE_REG_R10]		= "%r10",
+	[STATE_REG_R11]		= "%r11",
+	[STATE_REG_R12]		= "%r12",
+	[STATE_REG_R13]		= "%r13",
+	[STATE_REG_R14]		= "%r14",
+	[STATE_REG_R15]		= "%r15",
+	[STATE_REG_RIP]		= "%rip",
+
+	[STATE_REG_EFER]	= "EFER"
 };
 
 #define MAX_REG_AMD64 (sizeof(offset_table_amd64)/sizeof(uint32_t))
@@ -236,4 +327,31 @@ int state_set_reg (enum state_reg_t reg, uint64_t value) {
 		*(uint64_t *)addr = value;
 
 	return 0;
+}
+
+/* Dump the name and contents of a register to a string.
+ *
+ * Returns: The number of bytes written.
+ */
+
+int state_dump_reg(char * dest, int max, enum state_reg_t reg) {
+	const char const * name = register_names[reg];
+	switch (state_reg_size(reg)) {
+	case 1:
+		return snprintf(dest, max, "%.4s: 0x%02x\n",
+			name, (unsigned int)state_get_reg(reg));
+	case 2:
+		return snprintf(dest, max, "%.4s: 0x%04x\n",
+			name, (unsigned int)state_get_reg(reg));
+	case 4:
+		return snprintf(dest, max, "%.4s: 0x%08x\n",
+			name, (unsigned int)state_get_reg(reg));
+	case 8: {
+		uint64_t v = state_get_reg(reg);
+		return snprintf(dest, max, "%.4s: 0x%08x%08x\n",
+			name, (unsigned int)(v>>32), (unsigned int)v);
+	}
+	default:
+		return 0;
+	}
 }

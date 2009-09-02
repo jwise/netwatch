@@ -59,11 +59,31 @@ enum state_reg_t {
 	STATE_REG_CR3,
 
 	STATE_REG_CS,
+	STATE_REG_CS_ATTRIB,
+	STATE_REG_CS_BASE,
+	STATE_REG_CS_LIMIT,
 	STATE_REG_SS,
+	STATE_REG_SS_ATTRIB,
+	STATE_REG_SS_BASE,
+	STATE_REG_SS_LIMIT,
 	STATE_REG_DS,
+	STATE_REG_DS_ATTRIB,
+	STATE_REG_DS_BASE,
+	STATE_REG_DS_LIMIT,
 	STATE_REG_ES,
+	STATE_REG_ES_ATTRIB,
+	STATE_REG_ES_BASE,
+	STATE_REG_ES_LIMIT,
 	STATE_REG_FS,
+	STATE_REG_FS_ATTRIB,
+	STATE_REG_FS_BASE,
+	STATE_REG_FS_LIMIT,
 	STATE_REG_GS,
+	STATE_REG_GS_ATTRIB,
+	STATE_REG_GS_BASE,
+	STATE_REG_GS_LIMIT,
+	STATE_REG_IDT_BASE,
+	STATE_REG_IDT_LIMIT,
 
 	/* 64-bit registers */
 	STATE_REG_RAX,
@@ -82,8 +102,14 @@ enum state_reg_t {
 	STATE_REG_R13,
 	STATE_REG_R14,
 	STATE_REG_R15,
-	STATE_REG_RIP
+	STATE_REG_RIP,
+	STATE_REG_RFLAGS,
+
+	STATE_REG_EFER,
+
+	NUM_REGISTERS
 };
+
 
 enum smm_type {
         SMM_TYPE_UNKNOWN,
@@ -91,9 +117,13 @@ enum smm_type {
         SMM_TYPE_64
 };
 
+enum smm_type state_get_type(void);
+
 uint64_t state_get_reg (enum state_reg_t reg);
 int state_reg_size (enum state_reg_t reg);
 int state_set_reg (enum state_reg_t reg, uint64_t value);
+
+int state_dump_reg(char * dest, int max, enum state_reg_t reg);
 
 #endif /* __STATE_H */
 

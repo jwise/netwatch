@@ -5,9 +5,9 @@ static const char data_404_html[] =
 
 static const char data_index_html[] =
   "<html><head><title>NetWatch</title></head>"
-  "<body><h1>NetWatch</h1>"
-  "<iframe src=\"registers.html\" height=100 width=600></iframe><br>"
-  "<iframe src=\"backtrace.html\" height=250 width=150></iframe>"
+  "<body><h1>NetWatch</h1><table cellpadding=0 cellspacing=0 border=0><tr valign=top><td>"
+  "<iframe src=\"registers.html\" height=500 width=300></iframe></td><td>"
+  "<iframe src=\"backtrace.html\" height=250 width=150></iframe></td></tr></table>"
   "<form action=reboot type=post><input type=submit value=\"Reboot!\"></form>"
   "</body></html>";
 

@@ -19,8 +19,11 @@ SECTIONS
 
 	. = 0x200000;
 
-	.text : { *(.text); }
-	.data : { *(.data); }
+	.text : {
+		*(.text);
+		*(SORT(.table.*));
+	}
+	.data : { *(.data); *(.data2); }
 	.rodata : { *(.rodata); }
 	.text : { *(.text); }
 	
@@ -32,7 +35,7 @@ SECTIONS
 	.stack : { 
 		. = . + 0x10000;
 		. = ALIGN(0x10);
-		_stacktop = .;
+		_primary_stack_top = .;
 	}
 
 	. = 0x10000;
