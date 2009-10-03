@@ -122,6 +122,7 @@ enum smm_type state_get_type(void);
 uint64_t state_get_reg (enum state_reg_t reg);
 int state_reg_size (enum state_reg_t reg);
 int state_set_reg (enum state_reg_t reg, uint64_t value);
+int state_num_regs();
 
 int state_dump_reg(char * dest, int max, enum state_reg_t reg);
 

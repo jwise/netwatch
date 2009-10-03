@@ -72,7 +72,7 @@ static const uint32_t offset_table_legacy[] = {
 	[STATE_REG_IDT_BASE]	= 0xff94 | SZ_DWORD
 };
 
-#define MAX_REG_LEGACY (sizeof(offset_table_legacy)/sizeof(uint32_t))
+#define MAX_REG_LEGACY (sizeof(offset_table_legacy)/sizeof(offset_table_legacy[0]) - 1)
 
 static const uint32_t offset_table_amd64[] = {
 	[STATE_REV]		= 0xfefc | SZ_DWORD,
@@ -207,9 +207,9 @@ static const char register_names[][4] = {
 	[STATE_REG_EFER]	= "EFER"
 };
 
-#define MAX_REG_AMD64 (sizeof(offset_table_amd64)/sizeof(uint32_t))
+#define MAX_REG_AMD64 (sizeof(offset_table_amd64)/sizeof(offset_table_amd64[0]) - 1)
 
-static enum smm_type smm_type = SMM_TYPE_64;
+static enum smm_type smm_type = SMM_TYPE_UNKNOWN;
 
 /* Probe CPUID to figure out what kind of processor this actually is.
  * We memoize this in 'smm_type', so cpuid only needs to happen once.
@@ -245,9 +245,9 @@ static unsigned long get_offset(enum state_reg_t reg) {
 
 	check_smm_type();
 
-	if (smm_type == SMM_TYPE_32 && reg < MAX_REG_LEGACY)
+	if (smm_type == SMM_TYPE_32 && reg <= MAX_REG_LEGACY)
 		return offset_table_legacy[reg];
-	else if (smm_type == SMM_TYPE_64 && reg < MAX_REG_AMD64)
+	else if (smm_type == SMM_TYPE_64 && reg <= MAX_REG_AMD64)
 		return offset_table_amd64[reg];
 	else
 		return 0;
@@ -354,4 +354,14 @@ int state_dump_reg(char * dest, int max, enum state_reg_t reg) {
 	default:
 		return 0;
 	}
+}
+
+int state_num_regs() {
+	check_smm_type();
+
+	if (smm_type == SMM_TYPE_32)
+		return MAX_REG_LEGACY;
+	else if (smm_type == SMM_TYPE_64)
+		return MAX_REG_AMD64;
+	return 0;
 }
