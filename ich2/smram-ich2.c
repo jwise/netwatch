@@ -1,4 +1,4 @@
-/* ich2-timer.c
+/* smram-ich2.c
  * SMRAM access utility for ICH2 chipset
  * NetWatch system management mode administration console
  *
@@ -149,7 +149,7 @@ int smram_aseg_set_state (int open) {
 
 	if (smram_locked())
 		return -1;
-		
+
 	smramc = pci_read8(0, 0, 0, SMRAMC);
 
 	switch (open)
