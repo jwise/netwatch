@@ -56,6 +56,9 @@ OBJS =	../ich2/smi.o \
 	../lib/console.o \
 	../lib/serial.o \
 	../lib/crc32.o \
+	../lib/demap.o \
+	../lib/state.o \
+	../lib/cpuid.o \
 	keyboard.o \
 	packet.o \
 	$(LWIP_OBJS) \
@@ -68,8 +71,8 @@ OBJS =	../ich2/smi.o \
 
 all: aseg.elf
 
-aseg.elf: aseg.lds $(STUBOBJS) $(OBJS)
-	ld -o aseg.elf -T aseg.lds $(STUBOBJS) $(OBJS)
+aseg.elf: netwatch-large.lds $(STUBOBJS) $(OBJS)
+	ld -o aseg.elf -T netwatch-large.lds $(STUBOBJS) $(OBJS)
 
 clean:
 	rm -f $(OBJS) aseg.elf entry.bin entry.o
