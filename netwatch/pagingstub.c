@@ -132,19 +132,6 @@ int addmap_4m(unsigned long vaddr, unsigned long paddr)
 	return 0;
 }
 
-void *demap(unsigned long client_pd, unsigned long vaddr)
-{
-	unsigned long pde = ((unsigned long *)p2v(client_pd))[PDE_FOR(vaddr)];
-	unsigned long pte;
-	
-	if (!(pde & PTE_PRESENT))
-		return (void*)0x0;
-	pte = ((unsigned long *)p2v(ADDR_12_MASK(pde)))[PTE_FOR(vaddr)];
-	if (!(pte & PTE_PRESENT))
-		return (void*)0x0;
-	return p2v((pte & ~0xFFF) + (vaddr & 0xFFF));
-}
-
 static void pt_setup(int tseg_start, int tseg_size) {
 	int i;
 
@@ -243,7 +230,7 @@ void c_entry(void)
 	traps_install();
 	
 	DBG(0x09);
-	ps_switch_stack(init_and_run, 0xa2000);
+	ps_switch_stack(init_and_run, 0x270000);
 
 	DBG(0xFA);
 }
