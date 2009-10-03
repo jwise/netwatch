@@ -51,7 +51,7 @@ void handle_regs(struct fs_file *file)
 
   len = snprintf(http_output_buffer, sizeof(http_output_buffer), "<html><pre>");
 
-  for (i = 0; i < NUM_REGISTERS; i++) {
+  for (i = 0; i < state_num_regs(); i++) {
     len += state_dump_reg(http_output_buffer + len, sizeof(http_output_buffer) - len, i);
   }
 
@@ -75,33 +75,35 @@ void handle_backtrace(struct fs_file *file)
   strcpy(buf, "<html><head><title>Backtrace</title></head><body><tt><pre>");
   len = strlen(buf);
 
-  bp = state_get_reg(STATE_REG_RIP);
+  bp = state_get_reg(longmode ? STATE_REG_RIP : STATE_REG_EIP);
 
   if (longmode)
     len += snprintf(buf + len, LEFT, "0x%08x%08x, from\n", (uint32_t)(bp >> 32), (uint32_t)bp);
   else
     len += snprintf(buf + len, LEFT, "0x%08x, from\n", (uint32_t)bp);
   
-  bp = state_get_reg(STATE_REG_RBP);
+  bp = state_get_reg(longmode ? STATE_REG_RBP : STATE_REG_EBP);
   
-  /* I never thought I'd do this again. */
+
+  outputf("Backtrace:");
   while ((peip = demap(bp+(longmode?8:4))) != 0x0 && i--)
   {
     if (longmode) {
-      next = *(uint64_t *)peip;
-      len += snprintf(buf + len, LEFT, "0x%08x%08x, from\n", (uint32_t)(next >> 32), (uint32_t)next);
+      uint64_t rip;
+      rip = *(uint64_t *)peip;
+      len += snprintf(buf + len, LEFT, "0x%08x%08x, from\n", (uint32_t)(rip >> 32), (uint32_t)rip);
     } else {
-      next = *(uint32_t *)peip;
-      len += snprintf(buf + len, LEFT, "0x%08x, from\n", (uint32_t)next);
+      len += snprintf(buf + len, LEFT, "0x%08x, from\n", *(uint32_t *)peip);
     }
+    outputf("   EIP: %08x", *(uint32_t *)peip);
 
     pebp = demap(bp);
-
-    if (!pebp)
+    if (!pebp || (bp & 3))
     {
       len += snprintf(buf + len, LEFT, "&lt;unreadable frame&gt;\n");
       break;
     }
+    outputf("   *EBP: %08x", *(uint32_t *)pebp);
 
     if (longmode)
       next = *(uint64_t *)pebp;
@@ -119,6 +121,8 @@ void handle_backtrace(struct fs_file *file)
 
   if (i == -1)
     len += snprintf(buf + len, LEFT, "...\n");
+  else if (bp && !peip)
+    len += snprintf(buf + len, LEFT, "&lt;unreadable fp @ %08x&gt;\n", (uint32_t) bp);
   else
     len += snprintf(buf + len, LEFT, "&lt;root&gt;");
 
