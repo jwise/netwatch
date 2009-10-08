@@ -101,7 +101,10 @@ void smi_poll()
 		
 		if (pm1_sts & ICH2_PM1_STS_PWRBTN_STS)
 		{
-			output("Unhandled: PM1_STS: PWRBTN_STS");
+			if (_handlers[SMI_EVENT_PWRBTN] == SMI_HANDLER_NONE)
+				output("Unhandled: PM1_STS: PWRBTN_STS");
+			else if (_handlers[SMI_EVENT_FAST_TIMER] != SMI_HANDLER_IGNORE)
+				_handlers[SMI_EVENT_PWRBTN](SMI_EVENT_PWRBTN);
 			outw(_get_PMBASE() + ICH2_PMBASE_PM1_STS, ICH2_PM1_STS_PWRBTN_STS);
 		}
 		
@@ -224,6 +227,11 @@ int smi_enable_event(smi_event_t ev)
 			inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) |
 				ICH2_SMI_EN_BIOS_EN);
 		return 0;
+	case SMI_EVENT_PWRBTN:
+		outl(_get_PMBASE() + ICH2_PMBASE_PM1_EN,
+			inl(_get_PMBASE() + ICH2_PMBASE_PM1_EN) |
+				ICH2_PM1_EN_PWRBTN_EN);
+		return 0;
 	default:
 		return -1;
 	}
@@ -247,6 +255,11 @@ int smi_disable_event(smi_event_t ev)
 		outl(_get_PMBASE() + ICH2_PMBASE_SMI_EN,
 			inl(_get_PMBASE() + ICH2_PMBASE_SMI_EN) &
 				~ICH2_SMI_EN_BIOS_EN);
+		return 0;
+	case SMI_EVENT_PWRBTN:
+		outl(_get_PMBASE() + ICH2_PMBASE_PM1_EN,
+			inl(_get_PMBASE() + ICH2_PMBASE_PM1_EN) &
+				~ICH2_PM1_EN_PWRBTN_EN);
 		return 0;
 	default:
 		return -1;
