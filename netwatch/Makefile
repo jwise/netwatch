@@ -1,4 +1,6 @@
-CC=gcc-4.3
+-include ../config.mk
+
+CC=$(CROSS)gcc
 CFLAGS=-I../include -I../include/raw \
        -I../lwip/src/include -I../lwip/src/include/ipv4 \
        -nostdlib -nostdinc -fno-builtin -D__RAW__ \
@@ -72,12 +74,12 @@ OBJS =	../ich2/smi.o \
 all: aseg.elf
 
 aseg.elf: netwatch-large.lds $(STUBOBJS) $(OBJS)
-	ld -o aseg.elf -T netwatch-large.lds $(STUBOBJS) $(OBJS)
+	$(CROSS)ld -o aseg.elf -T netwatch-large.lds $(STUBOBJS) $(OBJS)
 
 clean:
 	rm -f $(OBJS) aseg.elf entry.bin entry.o
 
 %.o: %.asm
 	nasm -o $@.bin $<
-	objcopy -I binary -B i386 -O elf32-i386 $@.bin $@
+	$(CROSS)objcopy -I binary -B i386 -O elf32-i386 $@.bin $@
 	rm -f $@.bin
