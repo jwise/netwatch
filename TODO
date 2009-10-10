@@ -1,4 +1,4 @@
-Todo list as of 20081216:
+Todo list:
 
 - Support formats other than RGB888
 - Identify why lwIP's malloc occasionally says out of memory after closing
@@ -9,3 +9,4 @@ Todo list as of 20081216:
 - Make ACPI work?
 - "Unknown TNT2 format ff" hang occasionally happens during startx
 - Figure out why traps cause lockup in SMM.
+- A20...?
