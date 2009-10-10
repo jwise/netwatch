@@ -1,4 +1,4 @@
-/* multiboot_c.c
+/* main.c
  * Main program for starting SMM code
  * NetWatch multiboot loader
  *

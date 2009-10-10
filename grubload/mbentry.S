@@ -1,4 +1,4 @@
-/* multiboot_asm.S
+/* mbentry.S
  * Multiboot header
  * NetWatch multiboot loader
  *
