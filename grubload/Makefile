@@ -1,9 +1,9 @@
 -include ../config.mk
--include ../ich2/config.mk
+-include ../hardware/ich2/config.mk
 
 OBJS=main.o mbentry.o realmode.o loader.o ../pci/pci-raw.o ../lib/minilib.o ../lib/console.o $(CHIP_OBJS) output.o ../lib/sprintf.o ../lib/doprnt.o ../pci/pci.o
 CC=$(CROSS)gcc
-CFLAGS=-nostdlib -I../include -I../include/raw -I. -D__RAW__ -fno-builtin -nostdinc -Wall -Werror -pedantic -std=gnu99
+CFLAGS+=-nostdlib -I../include -I../include/raw -I. -D__RAW__ -fno-builtin -nostdinc -Wall -Werror -pedantic -std=gnu99
 
 all: smmload
 

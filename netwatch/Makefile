@@ -1,8 +1,8 @@
 -include ../config.mk
--include ../ich2/config.mk
+-include ../hardware/ich2/config.mk
 
 CC=$(CROSS)gcc
-CFLAGS+=-I../include -I../include/raw \
+CFLAGS+=-I../include -I../net -I../include/raw \
         -I../lwip/src/include -I../lwip/src/include/ipv4 \
         -nostdlib -nostdinc -fno-builtin -D__RAW__ \
         -Wall -Werror -std=gnu99 -Wstrict-aliasing=2 \
@@ -44,12 +44,12 @@ OBJS =	$(CHIP_OBJS) \
 	../net/net.o \
 	../net/http/fs.o \
 	../net/http/httpd.o \
-	../net/3c90x.o \
+	../hardware/net/3c90x.o \
 	../net/rfb.o \
-	../video/tnt2.o \
-	../video/fb.o \
-	../video/generic.o \
-	../video/text.o \
+	../hardware/video/tnt2.o \
+	../hardware/video/fb.o \
+	../hardware/video/generic.o \
+	../hardware/video/text.o \
 	drivers.o \
 	../lib/minilib.o \
 	../lib/doprnt.o \

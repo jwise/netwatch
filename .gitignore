@@ -1,3 +1,5 @@
 *.o
 *.bin
 *.elf
+grubload/smmload
+hardware/ich2/smram-ich2
