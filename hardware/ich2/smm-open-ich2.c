@@ -1,5 +1,5 @@
 /* smm-open-ich2.c
- * SMRAM control utility for ICH2 southbridge
+ * SMRAM control utility for ICH2 northbridge
  * NetWatch system management mode administration console
  *
  * Copyright (c) 2008 Jacob Potter and Joshua Wise.  All rights reserved.

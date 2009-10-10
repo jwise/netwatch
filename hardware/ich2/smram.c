@@ -1,4 +1,4 @@
-/* smram-ich2.c
+/* smram.c
  * SMRAM access utility for ICH2 chipset
  * NetWatch system management mode administration console
  *

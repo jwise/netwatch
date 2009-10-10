@@ -1,4 +1,4 @@
-/* ich2-timer.c
+/* timer.c
  * High precision timer routines for ICH2 southbridge
  * NetWatch system management mode administration console
  *
