@@ -60,20 +60,11 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 
 	if (mbinfo->mod_cnt != 1)
 		panic("Expected exactly one module; cannot continue.");
-	outputf("Current SMRAMC state is: %02x", pci_read8(0, 0, 0, 0x70));
-	outputf("Current USB state is: %04x %04x", pci_read16(0, 31, 2, 0xC0), pci_read16(0, 31, 4, 0xC0));
-	outputf("Current SMI state is: %08x", inl(0x830));
+	outputf("Current SMRAMC state is: %02x", (unsigned char)smram_save_state());
+	outputf("Current SMI state is: %08x", inl(0x830));	// XXX ICH2 specific
 	
 	smi_disable();
 	
-	/* Try really hard to shut up USB_LEGKEY. */
-	pci_write16(0, 31, 2, 0xC0, pci_read16(0, 31, 2, 0xC0));
-	pci_write16(0, 31, 2, 0xC0, 0);
-	pci_write16(0, 31, 4, 0xC0, pci_read16(0, 31, 4, 0xC0));
-	pci_write16(0, 31, 4, 0xC0, 0);
-/*	
-	pci_bus_enum();
-*/
 	/* Open the SMRAM aperture and load our ELF. */
 	old_smramc = smram_save_state();
 
@@ -92,7 +83,7 @@ void c_start(unsigned int magic, struct mb_info *mbinfo)
 	info->firstrun();
 	smram_restore_state(old_smramc);
 	
-	outputf("New SMRAMC state is: %02x", pci_read8(0, 0, 0, 0x70));
+	outputf("New SMRAMC state is: %02x", (unsigned char)smram_save_state());
 
 	puts("Waiting for a bit before returning to real mode...");
 	for (i=0; i<0x500000; i++)

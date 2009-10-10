@@ -74,14 +74,8 @@ extern void timer_handler(smi_event_t ev);
 extern void kbc_handler(smi_event_t ev);
 extern void gbl_rls_handler(smi_event_t ev);
 
-void __firstrun_stub() {
-
-        /* Try really hard to shut up USB_LEGKEY. */
-        pci_write16(0, 31, 2, 0xC0, pci_read16(0, 31, 2, 0xC0));
-        pci_write16(0, 31, 2, 0xC0, 0);
-        pci_write16(0, 31, 4, 0xC0, pci_read16(0, 31, 4, 0xC0));
-        pci_write16(0, 31, 4, 0xC0, 0);
-
+void __firstrun_stub()
+{
         /* Turn on the SMIs we want */
         smi_disable();
 

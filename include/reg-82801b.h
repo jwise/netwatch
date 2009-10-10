@@ -134,6 +134,8 @@
 #define ICH2_USB1_DEV			31
 #define ICH2_USB1_FN			4
 
+#define ICH2_USB_LEGKEY			0xC0
+
 #define ICH2_SMBUS_BUS			0
 #define ICH2_SMBUS_DEV			31
 #define ICH2_SMBUS_FN			3

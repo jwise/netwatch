@@ -36,12 +36,6 @@ void smi_init() {
 
 	outputf("NetWatch running");
 
-	/* Try really hard to shut up USB_LEGKEY. */
-	pci_write16(0, 31, 2, 0xC0, pci_read16(0, 31, 2, 0xC0));
-	pci_write16(0, 31, 2, 0xC0, 0);
-	pci_write16(0, 31, 4, 0xC0, pci_read16(0, 31, 4, 0xC0));
-	pci_write16(0, 31, 4, 0xC0, 0);
-
 	/* Turn on the SMIs we want */
 	smi_disable();
 	
