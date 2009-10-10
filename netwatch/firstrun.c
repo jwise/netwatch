@@ -24,6 +24,7 @@ extern int _bss, _bssend;
 extern void timer_handler(smi_event_t ev);
 extern void kbc_handler(smi_event_t ev);
 extern void gbl_rls_handler(smi_event_t ev);
+extern void cs410_pwrbtn_handler(smi_event_t ev);
 
 extern pci_driver_t *drivers[];
 
@@ -69,6 +70,9 @@ void smi_init() {
 	
 	smi_register_handler(SMI_EVENT_GBL_RLS, gbl_rls_handler);
 	smi_enable_event(SMI_EVENT_GBL_RLS);
+	
+	smi_register_handler(SMI_EVENT_PWRBTN, cs410_pwrbtn_handler);
+	smi_enable_event(SMI_EVENT_PWRBTN);
 
 	smi_enable();
 	

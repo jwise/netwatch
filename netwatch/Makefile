@@ -59,6 +59,9 @@ OBJS =	../ich2/smi.o \
 	../lib/demap.o \
 	../lib/state.o \
 	../lib/cpuid.o \
+	../cs410/cs410.o \
+	../cs410/keyb.o \
+	../cs410/keyhelp.o \
 	keyboard.o \
 	packet.o \
 	$(LWIP_OBJS) \
