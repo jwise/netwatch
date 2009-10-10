@@ -59,7 +59,8 @@ Porting NetWatch to other systems will likely require:
 
 We have found that Intel generally provides easily-accessible chipset
 datasheets on their website; searching for a particular ICH series part on
-Google will likely lead to the correct datasheet without too much trouble.
-Other chipset manufacturers are likely to be significantly less cooperative.
+Google will likely lead to the correct datasheet without too much trouble. 
+Other chipset manufacturers have been found to be significantly less
+cooperative.
 
 
