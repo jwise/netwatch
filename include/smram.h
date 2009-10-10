@@ -1,7 +1,7 @@
 #ifndef __SMRAM_H
 #define __SMRAM_H
 
-#include "../ich2/smram-ich2.h"
+#include "smram-hardware.h"
 
 extern int smram_locked();
 extern smram_state_t smram_save_state();

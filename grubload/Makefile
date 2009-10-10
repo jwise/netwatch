@@ -1,6 +1,7 @@
 -include ../config.mk
+-include ../ich2/config.mk
 
-OBJS=main.o mbentry.o realmode.o loader.o ../pci/pci-raw.o ../lib/minilib.o ../lib/console.o ../ich2/smram-ich2.o ../ich2/smi.o output.o ../lib/sprintf.o ../lib/doprnt.o ../pci/pci.o
+OBJS=main.o mbentry.o realmode.o loader.o ../pci/pci-raw.o ../lib/minilib.o ../lib/console.o $(CHIP_OBJS) output.o ../lib/sprintf.o ../lib/doprnt.o ../pci/pci.o
 CC=$(CROSS)gcc
 CFLAGS=-nostdlib -I../include -I../include/raw -I. -D__RAW__ -fno-builtin -nostdinc -Wall -Werror -pedantic -std=gnu99
 

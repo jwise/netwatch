@@ -1,11 +1,12 @@
 -include ../config.mk
+-include ../ich2/config.mk
 
 CC=$(CROSS)gcc
-CFLAGS=-I../include -I../include/raw \
-       -I../lwip/src/include -I../lwip/src/include/ipv4 \
-       -nostdlib -nostdinc -fno-builtin -D__RAW__ \
-       -Wall -Werror -std=gnu99 -Wstrict-aliasing=2 \
-       -O1 -fno-merge-constants -fno-strict-aliasing
+CFLAGS+=-I../include -I../include/raw \
+        -I../lwip/src/include -I../lwip/src/include/ipv4 \
+        -nostdlib -nostdinc -fno-builtin -D__RAW__ \
+        -Wall -Werror -std=gnu99 -Wstrict-aliasing=2 \
+        -O1 -fno-merge-constants -fno-strict-aliasing
 
 STUBOBJS=entry.o pagingstub-asm.o pagingstub.o
 
@@ -36,9 +37,7 @@ LWIP_OBJS = \
 	../lwip/src/netif/ethernetif.o
 
 
-OBJS =	../ich2/smi.o \
-	../ich2/smram-ich2.o \
-	../ich2/ich2-timer.o \
+OBJS =	$(CHIP_OBJS) \
 	../pci/pci.o \
 	../pci/pci-raw.o \
 	../pci/pci-bother.o \
