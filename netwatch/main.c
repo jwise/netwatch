@@ -1,5 +1,5 @@
 /* main.c
- * Main post-paging entry point.
+ * Main post-paging entry point.  Actually, this is a lie.
  * NetWatch system management mode administration console
  *
  * Copyright (c) 2008 Jacob Potter and Joshua Wise.  All rights reserved.
