@@ -80,16 +80,6 @@ void smi_entry(void)
 	
 	eth_poll();
 	
-	if (inl(0x840) & 0x1000)
-	{
-	/*
-		pci_dump();
-	*/
-		outl(0x840, 0x1100);
-		outl(0x840, 0x0100);
-	}
-
-
 	smi_poll();
 	
 	pci_bother_all();
