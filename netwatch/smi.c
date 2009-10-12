@@ -25,26 +25,56 @@ unsigned int counter = 0;
 unsigned long pcisave = 0;
 unsigned char vgasave = 0;
 
+unsigned long lastentry = 0;
+unsigned long lastlength = 0;
+
+unsigned long rdtsc()
+{
+	unsigned long tsc;
+	asm volatile ("mov %%cr4, %%eax;"
+	     "and $~2, %%eax;"
+	     "mov %%eax, %%cr4;"
+	     "rdtsc" : "=a"(tsc) : : "edx");
+	return tsc;
+}
+
 void smi_entry(void)
 {
 	char statstr[512];
+	unsigned long entrytime;
 
 	/* Reenable caching on SMRAM. */
 	WRMSR(0x202, (RDMSR(0x202) & ~(0xFFULL)) | 0x06ULL);
+
+	entrytime = rdtsc();
 
 	pcisave = inl(0xCF8);
 	vgasave = inb(0x3D4);
 	pci_unbother_all();
 	
 	serial_init();
-	
+
 	if (fb)
         	fb->getvmode(fb->priv);
 
 	counter++;
 	if (!fb || fb->curmode.text)
 	{
-        	sprintf(statstr, "NetWatch! %08x %08x", smi_status(), counter);
+		int totcyc, pct;
+		
+		if (entrytime < lastentry)
+			totcyc = entrytime + (0xFFFFFFFFUL - lastentry) + 1;
+		else
+			totcyc = entrytime - lastentry;
+		if (totcyc == 0)
+			totcyc = 1;	/* argh */
+		totcyc /= 1000;
+		if (totcyc == 0)
+			totcyc = 1;
+		
+		pct = lastlength / totcyc;
+		
+        	sprintf(statstr, "NetWatch! %08x %08x, %2d.%d%%", smi_status(), counter, pct/10, pct%10);
 		strblit(statstr, 0, 0, 0);
 	}
 	
@@ -65,6 +95,13 @@ void smi_entry(void)
 	pci_bother_all();
 	outl(0xCF8, pcisave);
 	outb(0x3D4, vgasave);
+	
+	lastentry = entrytime;
+	entrytime = rdtsc();
+	if (entrytime < lastentry)
+		lastlength = entrytime + (0xFFFFFFFFUL - lastentry) + 1;
+	else
+		lastlength = entrytime - lastentry;
 	
 	/* Disable caching on SMRAM again, to prevent the user from whacking us. */
 	WRMSR(0x202, RDMSR(0x202) & ~(0xFFULL));
