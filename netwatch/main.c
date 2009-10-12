@@ -48,7 +48,13 @@ void _try_inject()
 		outb(0x60, kbd_get_injected_scancode());	/* data */
 		while ((inb(0x64) & 0x02) && i--)	/* wait for completion */
 			;
-		outl(0x844, 0x1000);
+		/* On some chipsets, this might set the "device active" bit
+		 * for the keyboard controller.  On ICH2, we appear to get
+		 * lucky, but we need a mechanism of saying "I just touched
+		 * the keyboard, please don't send me another SMI because of
+		 * this"... XXX
+		 * ICH2: outl(0x844, 0x1000);
+		 */
 		adding_locks_from_time_to_time++;
 		smi_enable_event(SMI_EVENT_DEVTRAP_KBC);
 	} else if (kbd_has_injected_scancode())
